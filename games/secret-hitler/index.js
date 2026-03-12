@@ -39,9 +39,9 @@ export function setup(options = {}) {
 
   return engine.createGame(names, {
     model,
-    modelLiberal: options.modelLiberal,
-    modelFascist: options.modelFascist,
-    modelHitler: options.modelHitler,
+    modelLiberal: options.modelGood || options.modelLiberal,
+    modelFascist: options.modelEvil || options.modelFascist,
+    modelHitler: options.modelEvil || options.modelHitler,
     terms,
     enableThoughts,
     winPolicies,

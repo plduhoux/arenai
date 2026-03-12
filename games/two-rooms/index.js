@@ -24,8 +24,8 @@ export function setup(options = {}) {
 
   return engine.createGame(names, {
     model,
-    modelBlue: options.modelLiberal || options.modelBlue || model,
-    modelRed: options.modelFascist || options.modelRed || model,
+    modelBlue: options.modelGood || options.modelBlue || model,
+    modelRed: options.modelEvil || options.modelRed || model,
     enableThoughts: options.enableThoughts ?? defaultConfig.enableThoughts,
   });
 }

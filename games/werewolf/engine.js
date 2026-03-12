@@ -32,10 +32,9 @@ export function createGame(names, options = {}) {
   const roles = assignRoles(count);
   const model = options.model || 'claude-sonnet-4-5';
 
-  // Accept both modelVillager/modelWerewolf and modelLiberal/modelFascist (generic names from server)
   const models = {
-    villager: options.modelVillager || options.modelLiberal || model,
-    werewolf: options.modelWerewolf || options.modelFascist || model,
+    villager: options.modelGood || options.modelVillager || model,
+    werewolf: options.modelEvil || options.modelWerewolf || model,
   };
 
   const players = names.map((name, i) => ({

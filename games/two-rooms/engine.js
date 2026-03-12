@@ -11,9 +11,8 @@ import { randomUUID } from 'crypto';
 export function createGame(names, options = {}) {
   const count = names.length;
   const model = options.model || 'claude-sonnet-4-5';
-  // Accept both modelBlue/modelRed and modelLiberal/modelFascist (generic names from server)
-  options.modelBlue = options.modelBlue || options.modelLiberal;
-  options.modelRed = options.modelRed || options.modelFascist;
+  options.modelBlue = options.modelGood || options.modelBlue;
+  options.modelRed = options.modelEvil || options.modelRed;
 
   // Build roles: President (blue), Bomber (red), equal blue/red, Gambler if odd
   const roles = [];

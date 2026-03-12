@@ -25,6 +25,11 @@ function initSchema() {
   // Migrations
   try { db.exec(`ALTER TABLE games ADD COLUMN model_liberal TEXT`); } catch {}
   try { db.exec(`ALTER TABLE games ADD COLUMN model_fascist TEXT`); } catch {}
+  // Rename to generic columns (keep old for migration)
+  try { db.exec(`ALTER TABLE games ADD COLUMN model_good TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE games ADD COLUMN model_evil TEXT`); } catch {}
+  // Migrate old data
+  try { db.exec(`UPDATE games SET model_good = model_liberal, model_evil = model_fascist WHERE model_good IS NULL AND model_liberal IS NOT NULL`); } catch {}
   try { db.exec(`ALTER TABLE games ADD COLUMN game_type TEXT DEFAULT 'secret-hitler'`); } catch {}
 
   // Provider & model configuration
@@ -172,16 +177,16 @@ export function saveGame(game) {
   const db = getDb();
 
   const upsert = db.prepare(`
-    INSERT INTO games (id, game_type, model, model_liberal, model_fascist, player_count, rounds, winner, win_reason, players, terms,
+    INSERT INTO games (id, game_type, model, model_good, model_evil, player_count, rounds, winner, win_reason, players, terms,
                        policies_liberal, policies_fascist, tokens_input, tokens_output, api_calls,
                        status, created_at, finished_at)
-    VALUES (@id, @gameType, @model, @modelLiberal, @modelFascist, @playerCount, @rounds, @winner, @winReason, @players, @terms,
+    VALUES (@id, @gameType, @model, @modelGood, @modelEvil, @playerCount, @rounds, @winner, @winReason, @players, @terms,
             @liberal, @fascist, @tokensIn, @tokensOut, @apiCalls,
             @status, @createdAt, @finishedAt)
     ON CONFLICT(id) DO UPDATE SET
       rounds = @rounds, winner = @winner, win_reason = @winReason,
       game_type = @gameType,
-      model_liberal = @modelLiberal, model_fascist = @modelFascist,
+      model_good = @modelGood, model_evil = @modelEvil,
       policies_liberal = @liberal, policies_fascist = @fascist,
       tokens_input = @tokensIn, tokens_output = @tokensOut, api_calls = @apiCalls,
       status = @status, finished_at = @finishedAt
@@ -195,8 +200,8 @@ export function saveGame(game) {
     id: game.id,
     gameType: game.gameType || 'secret-hitler',
     model: game.model,
-    modelLiberal: libPlayer?.model || game.model,
-    modelFascist: fasPlayer?.model || game.model,
+    modelGood: libPlayer?.model || game.model,
+    modelEvil: fasPlayer?.model || game.model,
     playerCount: game.players.length,
     rounds: game.round,
     winner: game.winner,
@@ -283,17 +288,17 @@ export function getStats() {
     // Stats per model: a model "wins" when it played on the winning side
   const byModelRaw = db.prepare(`
     SELECT
-      model_liberal, model_fascist, winner,
+      model_good, model_evil, winner,
       COUNT(*) as count
     FROM games WHERE status = 'finished'
-    GROUP BY model_liberal, model_fascist, winner
+    GROUP BY model_good, model_evil, winner
   `).all();
 
   // Aggregate: for each model, count games played (as liberal + as fascist) and wins
   const modelMap = {};
   for (const row of byModelRaw) {
-    const mLib = row.model_liberal || row.model_fascist || 'unknown';
-    const mFas = row.model_fascist || row.model_liberal || 'unknown';
+    const mLib = row.model_good || row.model_evil || 'unknown';
+    const mFas = row.model_evil || row.model_good || 'unknown';
 
     if (!modelMap[mLib]) modelMap[mLib] = { model: mLib, played: 0, wins: 0, asLiberal: 0, libWins: 0, asFascist: 0, fasWins: 0 };
     if (!modelMap[mFas]) modelMap[mFas] = { model: mFas, played: 0, wins: 0, asLiberal: 0, libWins: 0, asFascist: 0, fasWins: 0 };

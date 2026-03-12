@@ -28,19 +28,17 @@
 
       <div class="form-group">
         <label>{{ factionLabels.good }} Model</label>
-        <select v-model="modelLiberal">
-          <option v-for="m in AVAILABLE_MODELS" :key="m.value" :value="m.value">{{ m.label }}</option>
+        <select v-model="modelGood">
+          <option v-for="m in availableModels" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
       </div>
 
       <div class="form-group">
         <label>{{ factionLabels.evil }} Model</label>
-        <select v-model="modelFascist">
-          <option v-for="m in AVAILABLE_MODELS" :key="m.value" :value="m.value">{{ m.label }}</option>
+        <select v-model="modelEvil">
+          <option v-for="m in availableModels" :key="m.value" :value="m.value">{{ m.label }}</option>
         </select>
       </div>
-
-      <!-- Dictator uses the same model as Fascist (same team) -->
 
       <div class="form-group" v-if="gameType === 'secret-hitler'">
         <label>Game Length</label>
@@ -81,7 +79,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { TERMS_PRESETS } from '../utils/models'
+import { TERMS_PRESETS } from '../utils/constants'
 
 const router = useRouter()
 
@@ -94,27 +92,26 @@ const GAME_DEFAULTS = {
 const gameType = ref('werewolf')
 const playerCount = ref(6)
 const termsKey = ref('neutral')
-const AVAILABLE_MODELS = ref([])
-const modelLiberal = ref('')
-const modelFascist = ref('')
+const availableModels = ref([])
+const modelGood = ref('')
+const modelEvil = ref('')
 
 onMounted(async () => {
   const res = await fetch('/api/models/enabled')
   const models = await res.json()
-  AVAILABLE_MODELS.value = models.map(m => ({
+  availableModels.value = models.map(m => ({
     value: m.model_id,
     label: `${m.display_name} (${m.provider_name})`,
   }))
-  if (AVAILABLE_MODELS.value.length > 0) {
-    modelLiberal.value = AVAILABLE_MODELS.value[0].value
-    modelFascist.value = AVAILABLE_MODELS.value[0].value
+  if (availableModels.value.length > 0) {
+    modelGood.value = availableModels.value[0].value
+    modelEvil.value = availableModels.value[0].value
   }
 })
 const gameLength = ref('standard')
 const discussionRounds = ref(2)
 const enableThoughts = ref(true)
 
-// Reset defaults when game type changes
 watch(gameType, (type) => {
   const defaults = GAME_DEFAULTS[type] || {}
   playerCount.value = defaults.playerCount ?? 6
@@ -151,8 +148,8 @@ async function launchGame() {
       body: JSON.stringify({
         gameType: gameType.value,
         playerCount: playerCount.value,
-        modelLiberal: modelLiberal.value,
-        modelFascist: modelFascist.value,
+        modelGood: modelGood.value,
+        modelEvil: modelEvil.value,
         enableThoughts: enableThoughts.value,
         ...(gameType.value === 'secret-hitler' ? {
           winPolicies: WIN_POLICIES[gameLength.value],

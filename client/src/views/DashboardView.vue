@@ -122,8 +122,8 @@ function getModels(g) {
     if (evilParties.includes(p.party || p.team) && !evilModel) evilModel = p.model
   }
 
-  if (!goodModel) goodModel = g.model_liberal || g.model
-  if (!evilModel) evilModel = g.model_fascist || g.model
+  if (!goodModel) goodModel = g.model_good || g.model_liberal || g.model
+  if (!evilModel) evilModel = g.model_evil || g.model_fascist || g.model
 
   return { goodModel, evilModel }
 }
