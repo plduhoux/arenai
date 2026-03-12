@@ -1,11 +1,10 @@
 /**
- * ArenAI — ELO Rating System
- * 
- * Each model gets an ELO rating per faction role:
- * - "sonnet:liberal", "sonnet:fascist", "opus:hitler", etc.
- * - Plus an overall rating per model
- * 
- * After each game, ratings are updated based on outcome.
+ * ArenAI - ELO Rating System
+ *
+ * Generic across all game types. Each model gets:
+ * - An overall rating
+ * - Per-role ratings (good/evil, or specific roles like seer, bomber, etc.)
+ *
  * K-factor = 32 (standard for new players, good for our sample sizes)
  */
 
@@ -13,6 +12,20 @@ import { getDb } from './db.js';
 
 const K = 32;
 const DEFAULT_ELO = 1500;
+
+// Map game-specific roles to generic sides
+const GOOD_ROLES = ['liberal', 'villager', 'seer', 'witch', 'president', 'member:blue'];
+const EVIL_ROLES = ['fascist', 'hitler', 'werewolf', 'bomber', 'member:red'];
+
+function getSide(player) {
+  if (player.party === 'liberal' || player.party === 'villager' || player.team === 'blue') return 'good';
+  if (player.party === 'fascist' || player.party === 'werewolf' || player.team === 'red') return 'evil';
+  return 'neutral';
+}
+
+function isGoodWinner(winner) {
+  return ['liberal', 'villager', 'blue'].includes(winner);
+}
 
 export function initEloTable() {
   const db = getDb();
@@ -59,13 +72,12 @@ function expectedScore(ratingA, ratingB) {
   return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 }
 
-function newRating(rating, expected, actual) {
+function calcNewRating(rating, expected, actual) {
   return rating + K * (actual - expected);
 }
 
 /**
- * Update ELO ratings after a game.
- * @param {object} game - finished game object with players and winner
+ * Update ELO ratings after a game (any game type).
  */
 export function updateElo(game) {
   if (!game.winner || game.winner === 'draw') return;
@@ -73,78 +85,62 @@ export function updateElo(game) {
   const db = getDb();
   initEloTable();
 
+  const goodWon = isGoodWinner(game.winner);
+
   // Group models by side
-  const liberalModels = new Set();
-  const fascistModels = new Set();
-  let hitlerModel = null;
+  const goodModels = new Set();
+  const evilModels = new Set();
 
   for (const p of game.players) {
     const model = p.model || game.model;
-    if (p.role === 'liberal') liberalModels.add(model);
-    else if (p.role === 'fascist') fascistModels.add(model);
-    else if (p.role === 'hitler') hitlerModel = model;
+    const side = getSide(p);
+    if (side === 'good') goodModels.add(model);
+    else if (side === 'evil') evilModels.add(model);
   }
 
-  // Also add hitler to fascist side for overall
-  if (hitlerModel) fascistModels.add(hitlerModel);
-
-  const liberalWon = game.winner === 'liberal';
-
-  // Compute average ELO per side for matchup calculation
-  const libRatings = [...liberalModels].map(m => getElo(db, m, 'liberal').rating);
-  const fasRatings = [...fascistModels].map(m => getElo(db, m, 'fascist').rating);
-  const avgLibElo = libRatings.reduce((a, b) => a + b, 0) / libRatings.length;
-  const avgFasElo = fasRatings.reduce((a, b) => a + b, 0) / fasRatings.length;
+  // Compute average ELO per side
+  const goodRatings = [...goodModels].map(m => getElo(db, m, 'good').rating);
+  const evilRatings = [...evilModels].map(m => getElo(db, m, 'evil').rating);
+  const avgGoodElo = goodRatings.length > 0 ? goodRatings.reduce((a, b) => a + b, 0) / goodRatings.length : DEFAULT_ELO;
+  const avgEvilElo = evilRatings.length > 0 ? evilRatings.reduce((a, b) => a + b, 0) / evilRatings.length : DEFAULT_ELO;
 
   const transaction = db.transaction(() => {
-    // Update each liberal model
-    for (const model of liberalModels) {
-      // Per-faction rating
-      const elo = getElo(db, model, 'liberal');
-      const expected = expectedScore(elo.rating, avgFasElo);
-      const actual = liberalWon ? 1 : 0;
-      const updated = newRating(elo.rating, expected, actual);
-      setElo(db, model, 'liberal', updated, liberalWon);
+    // Update good side
+    for (const model of goodModels) {
+      const elo = getElo(db, model, 'good');
+      const expected = expectedScore(elo.rating, avgEvilElo);
+      const actual = goodWon ? 1 : 0;
+      const updated = calcNewRating(elo.rating, expected, actual);
+      setElo(db, model, 'good', updated, goodWon);
 
       db.prepare('INSERT INTO elo_history (game_id, model, role, rating_before, rating_after) VALUES (?, ?, ?, ?, ?)')
-        .run(game.id, model, 'liberal', elo.rating, updated);
-
-      // Overall rating
-      const overall = getElo(db, model, 'overall');
-      const overallExpected = expectedScore(overall.rating, avgFasElo);
-      const overallUpdated = newRating(overall.rating, overallExpected, actual);
-      setElo(db, model, 'overall', overallUpdated, liberalWon);
-    }
-
-    // Update each fascist model (non-hitler)
-    for (const model of fascistModels) {
-      if (model === hitlerModel && liberalModels.has(model)) continue; // avoid double-counting
-      const elo = getElo(db, model, 'fascist');
-      const expected = expectedScore(elo.rating, avgLibElo);
-      const actual = liberalWon ? 0 : 1;
-      const updated = newRating(elo.rating, expected, actual);
-      setElo(db, model, 'fascist', updated, !liberalWon);
-
-      db.prepare('INSERT INTO elo_history (game_id, model, role, rating_before, rating_after) VALUES (?, ?, ?, ?, ?)')
-        .run(game.id, model, 'fascist', elo.rating, updated);
+        .run(game.id, model, 'good', elo.rating, updated);
 
       // Overall
       const overall = getElo(db, model, 'overall');
-      const overallExpected = expectedScore(overall.rating, avgLibElo);
-      const overallUpdated = newRating(overall.rating, overallExpected, actual);
-      setElo(db, model, 'overall', overallUpdated, !liberalWon);
+      const overallExpected = expectedScore(overall.rating, avgEvilElo);
+      const overallUpdated = calcNewRating(overall.rating, overallExpected, actual);
+      setElo(db, model, 'overall', overallUpdated, goodWon);
     }
 
-    // Update hitler model specifically
-    if (hitlerModel) {
-      const elo = getElo(db, hitlerModel, 'hitler');
-      const expected = expectedScore(elo.rating, avgLibElo);
-      const actual = liberalWon ? 0 : 1;
-      const updated = newRating(elo.rating, expected, actual);
-      setElo(db, hitlerModel, 'hitler', updated, !liberalWon);
+    // Update evil side
+    for (const model of evilModels) {
+      const elo = getElo(db, model, 'evil');
+      const expected = expectedScore(elo.rating, avgGoodElo);
+      const actual = goodWon ? 0 : 1;
+      const updated = calcNewRating(elo.rating, expected, actual);
+      setElo(db, model, 'evil', updated, !goodWon);
 
       db.prepare('INSERT INTO elo_history (game_id, model, role, rating_before, rating_after) VALUES (?, ?, ?, ?, ?)')
-        .run(game.id, hitlerModel, 'hitler', elo.rating, updated);
+        .run(game.id, model, 'evil', elo.rating, updated);
+
+      // Overall (skip if same model on both sides)
+      if (!goodModels.has(model)) {
+        const overall = getElo(db, model, 'overall');
+        const overallExpected = expectedScore(overall.rating, avgGoodElo);
+        const overallUpdated = calcNewRating(overall.rating, overallExpected, actual);
+        setElo(db, model, 'overall', overallUpdated, !goodWon);
+      }
     }
   });
 
@@ -152,7 +148,7 @@ export function updateElo(game) {
 }
 
 /**
- * Get current ELO rankings
+ * Get current ELO rankings.
  */
 export function getEloRankings() {
   const db = getDb();
@@ -160,23 +156,9 @@ export function getEloRankings() {
 
   const all = db.prepare(`
     SELECT model, role, rating, games, wins
-    FROM elo_ratings
-    ORDER BY rating DESC
+    FROM elo_ratings ORDER BY rating DESC
   `).all();
 
-  // Group by model
-  const byModel = {};
-  for (const row of all) {
-    if (!byModel[row.model]) byModel[row.model] = {};
-    byModel[row.model][row.role] = {
-      rating: Math.round(row.rating),
-      games: row.games,
-      wins: row.wins,
-      winRate: row.games > 0 ? Math.round((row.wins / row.games) * 100) : 0,
-    };
-  }
-
-  // Overall leaderboard
   const overall = all
     .filter(r => r.role === 'overall')
     .map(r => ({
@@ -188,9 +170,8 @@ export function getEloRankings() {
     }))
     .sort((a, b) => b.rating - a.rating);
 
-  // Per-role leaderboards
   const byRole = {};
-  for (const role of ['liberal', 'fascist', 'hitler']) {
+  for (const role of ['good', 'evil']) {
     byRole[role] = all
       .filter(r => r.role === role)
       .map(r => ({
@@ -203,11 +184,11 @@ export function getEloRankings() {
       .sort((a, b) => b.rating - a.rating);
   }
 
-  return { overall, byRole, byModel };
+  return { overall, byRole };
 }
 
 /**
- * Get ELO history for a model
+ * Get ELO history for a model.
  */
 export function getEloHistory(model) {
   const db = getDb();
@@ -215,8 +196,6 @@ export function getEloHistory(model) {
 
   return db.prepare(`
     SELECT game_id, role, rating_before, rating_after, created_at
-    FROM elo_history
-    WHERE model = ?
-    ORDER BY id ASC
+    FROM elo_history WHERE model = ? ORDER BY id ASC
   `).all(model);
 }

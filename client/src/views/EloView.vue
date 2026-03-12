@@ -6,21 +6,19 @@
       <p>No ELO data yet. Play some games!</p>
     </div>
     <div v-else class="stats-grid">
-      <!-- Overall -->
-      <div class="stat-card">
+      <div class="stat-card wide-card">
         <h3>Overall Rankings</h3>
         <EloTable :rows="elo.overall" />
       </div>
 
-      <!-- By Role -->
-      <div v-for="role in roles" :key="role.key" class="stat-card">
-        <template v-if="elo.byRole[role.key]?.length">
-          <h3>
-            <span class="icon" :class="role.icon" />
-            {{ role.label }} ELO
-          </h3>
-          <EloTable :rows="elo.byRole[role.key]" />
-        </template>
+      <div v-if="elo.byRole?.good?.length" class="stat-card">
+        <h3>Good Side ELO (Liberal / Villager / Blue)</h3>
+        <EloTable :rows="elo.byRole.good" />
+      </div>
+
+      <div v-if="elo.byRole?.evil?.length" class="stat-card">
+        <h3>Evil Side ELO (Fascist / Werewolf / Red)</h3>
+        <EloTable :rows="elo.byRole.evil" />
       </div>
     </div>
   </div>
@@ -28,21 +26,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { fetchElo } from '../composables/useApi'
 import EloTable from '../components/EloTable.vue'
 
 const elo = ref(null)
 const loading = ref(true)
 
-const roles = [
-  { key: 'liberal', label: 'Liberal', icon: 'icon-liberal' },
-  { key: 'fascist', label: 'Fascist', icon: 'icon-fascist' },
-  { key: 'hitler', label: 'Dictator', icon: 'icon-hitler' },
-]
-
 onMounted(async () => {
   try {
-    elo.value = await fetchElo()
+    const res = await fetch('/api/elo')
+    elo.value = await res.json()
   } catch {}
   loading.value = false
 })
