@@ -7,12 +7,15 @@ export function formatTokens(n) {
 
 export function shortModel(m) {
   if (!m) return '?'
+  // claude-opus-4-6 -> Opus 4.6, claude-sonnet-4-5 -> Sonnet 4.5, gpt-5.2 -> GPT-5.2
   return m
-    .replace('claude-', '')
-    .replace(/-\d+-\d+$/, '')
-    .replace('sonnet', 'Sonnet')
-    .replace('haiku', 'Haiku')
-    .replace('opus', 'Opus')
+    .replace(/^claude-/, '')
+    .replace(/^(opus|sonnet|haiku)-(\d+)-(\d+)$/i, (_, name, maj, min) =>
+      `${name.charAt(0).toUpperCase() + name.slice(1)} ${maj}.${min}`)
+    .replace(/^(gpt-)/i, 'GPT-')
+    .replace(/^(grok-)/i, 'Grok ')
+    .replace(/^(kimi-)/i, 'Kimi ')
+    .replace(/^(gemini-)/i, 'Gemini ')
 }
 
 export function formatDate(dateStr) {
