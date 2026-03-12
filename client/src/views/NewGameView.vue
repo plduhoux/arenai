@@ -90,7 +90,7 @@ const GAME_DEFAULTS = {
 }
 
 const gameType = ref('werewolf')
-const playerCount = ref(6)
+const playerCount = ref(GAME_DEFAULTS['werewolf'].playerCount)
 const termsKey = ref('neutral')
 const availableModels = ref([])
 const modelGood = ref('')
@@ -109,8 +109,8 @@ onMounted(async () => {
   }
 })
 const gameLength = ref('standard')
-const discussionRounds = ref(2)
-const enableThoughts = ref(true)
+const discussionRounds = ref(GAME_DEFAULTS['werewolf'].discussionRounds)
+const enableThoughts = ref(GAME_DEFAULTS['werewolf'].enableThoughts)
 
 watch(gameType, (type) => {
   const defaults = GAME_DEFAULTS[type] || {}
