@@ -264,12 +264,19 @@ export function seerInspect(game) {
 
   const pastInfo = pastResults ? `\nYour past inspections:\n${pastResults}\n` : '';
 
+  const thoughtPrompt = game.enableThoughts
+    ? `\nTHOUGHT: your private reasoning about who to inspect and why`
+    : '';
+
   return ask(game, seerIndex,
-    `NIGHT: Choose someone to inspect.${pastInfo}\nPlayers: ${eligibleStr}\nReply with the player number only.`,
+    `NIGHT: Choose someone to inspect.${pastInfo}\nPlayers: ${eligibleStr}${thoughtPrompt}\nTARGET: player number only`,
     (text) => {
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET:)/is);
       const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (eligible.some(e => e.index === n)) return n;
-      return eligible[Math.floor(Math.random() * eligible.length)].index;
+      let target = null;
+      for (const n of nums) if (eligible.some(e => e.index === n)) { target = n; break; }
+      if (target === null) target = eligible[Math.floor(Math.random() * eligible.length)].index;
+      return { target, thought: thoughtMatch ? thoughtMatch[1].trim() : null };
     },
   );
 }
@@ -292,10 +299,15 @@ export function witchDecide(game, wolfTargetIndex) {
   if (canSave) prompt += `\nYou can SAVE ${victim.name} (single-use potion).${wolfTargetIndex === witchIndex ? ' You are the target - you may save yourself.' : ''}`;
   if (canKill) prompt += `\nYou can KILL someone with your poison (single-use): ${eligible.map(p => `${p.name} (#${p.index})`).join(', ')}`;
   if (canSave && canKill) prompt += `\nYou may use both potions the same night.`;
-  prompt += `\n\nSAVE: yes/no\nKILL: player number or none`;
+  const thoughtPrompt = game.enableThoughts
+    ? `\nTHOUGHT: your private reasoning about whether to use your potions and why`
+    : '';
+
+  prompt += `\n${thoughtPrompt}\nSAVE: yes/no\nKILL: player number or none`;
 
   return ask(game, witchIndex, prompt,
     (text) => {
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nSAVE:)/is);
       const save = canSave && /SAVE:\s*yes/i.test(text);
       const killMatch = text.match(/KILL:\s*(\d+)/i);
       let killTarget = null;
@@ -303,7 +315,7 @@ export function witchDecide(game, wolfTargetIndex) {
         const idx = parseInt(killMatch[1]);
         if (eligible.some(e => e.index === idx)) killTarget = idx;
       }
-      return { save, killTarget };
+      return { save, killTarget, thought: thoughtMatch ? thoughtMatch[1].trim() : null };
     },
   );
 }

@@ -51,10 +51,16 @@ const playerRoles = computed(() => {
   return map
 })
 
-// Auto-scroll on new events
+// Auto-scroll only when user is near the bottom
+function isNearBottom() {
+  const threshold = 150
+  return (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - threshold)
+}
+
 watch(
   () => props.events.length,
   async () => {
+    if (!isNearBottom()) return
     await nextTick()
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
   },

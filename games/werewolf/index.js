@@ -189,7 +189,7 @@ async function phaseNight(game, { onEvent }) {
   }
 
   // Seer + Wolf final vote in parallel
-  const [wolfTarget, seerTarget] = await Promise.all([
+  const [wolfTarget, seerResult] = await Promise.all([
     prompts.wolfChooseTarget(game),
     prompts.seerInspect(game),
   ]);
@@ -199,7 +199,11 @@ async function phaseNight(game, { onEvent }) {
   onEvent({ type: 'wolf_action', target: game.players[wolfTarget].name });
 
   // Seer
-  if (seerTarget !== null) {
+  if (seerResult !== null) {
+    const seerTarget = typeof seerResult === 'object' ? seerResult.target : seerResult;
+    if (seerResult?.thought) {
+      onEvent({ type: 'thought', player: game.players[game.players.findIndex(p => p.alive && p.role === 'seer')].name, thought: seerResult.thought });
+    }
     engine.setSeerInspection(game, seerTarget);
     onEvent({
       type: 'seer_action',
@@ -210,6 +214,10 @@ async function phaseNight(game, { onEvent }) {
 
   // Witch (needs wolf target)
   const witchResult = await prompts.witchDecide(game, wolfTarget);
+  if (witchResult.thought) {
+    const witchIdx = game.players.findIndex(p => p.alive && p.role === 'witch');
+    if (witchIdx !== -1) onEvent({ type: 'thought', player: game.players[witchIdx].name, thought: witchResult.thought });
+  }
   engine.setWitchAction(game, witchResult);
   if (witchResult.save) onEvent({ type: 'witch_save' });
   if (witchResult.killTarget !== null) {
