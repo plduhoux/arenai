@@ -109,6 +109,7 @@ function seedDefaults() {
     { provider_id: 'anthropic', model_id: 'claude-sonnet-4-6', display_name: 'Claude Sonnet 4.6' },
     { provider_id: 'anthropic', model_id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' },
     { provider_id: 'anthropic', model_id: 'claude-haiku-4-5', display_name: 'Claude Haiku 4.5' },
+    { provider_id: 'openai', model_id: 'gpt-5.4', display_name: 'GPT-5.4' },
     { provider_id: 'openai', model_id: 'gpt-5.2', display_name: 'GPT-5.2' },
     { provider_id: 'openai', model_id: 'gpt-5', display_name: 'GPT-5' },
     { provider_id: 'openai', model_id: 'gpt-5-mini', display_name: 'GPT-5 Mini' },
