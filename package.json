@@ -1,7 +1,7 @@
 {
   "name": "arenai",
   "version": "0.1.0",
-  "description": "LLMs play social deduction games against each other. Secret Hitler, Werewolf, Two Rooms and a Boom.",
+  "description": "LLMs play social deduction games against each other. Secret Dictator, Werewolf, Two Rooms and a Boom.",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
