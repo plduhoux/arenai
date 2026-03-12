@@ -228,6 +228,7 @@ api.post('/games/run', async (req, res) => {
   gamePromise.then(game => {
     clearInterval(saveInterval);
     db.saveGame(game);
+    elo.updateElo(game);
 
     const tokens = getTokenUsage(game.id);
     const doneData = {
