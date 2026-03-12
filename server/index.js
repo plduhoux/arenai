@@ -140,6 +140,8 @@ api.post('/games/run', async (req, res) => {
     discussionRounds,
   } = req.body;
 
+  console.log(`[game] New ${gameType}: model=${model}, modelGood=${modelGood}, modelEvil=${modelEvil}, players=${playerCount}`);
+
   const plugin = GAME_PLUGINS[gameType];
   if (!plugin) {
     return res.status(400).json({ error: `Unknown game type: ${gameType}` });

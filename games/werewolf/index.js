@@ -26,8 +26,8 @@ export function setup(options = {}) {
 
   return engine.createGame(names, {
     model,
-    modelVillager: options.modelLiberal || options.modelVillager || model,
-    modelWerewolf: options.modelFascist || options.modelWerewolf || model,
+    modelVillager: options.modelGood || options.modelVillager || model,
+    modelWerewolf: options.modelEvil || options.modelWerewolf || model,
     enableThoughts: options.enableThoughts ?? defaultConfig.enableThoughts,
     discussionRounds: options.discussionRounds ?? defaultConfig.discussionRounds,
     winCondition: options.winCondition ?? defaultConfig.winCondition,
