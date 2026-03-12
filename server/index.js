@@ -51,7 +51,7 @@ api.get('/gametypes', (req, res) => {
 
 api.get('/elo', (req, res) => res.json(elo.getEloRankings()));
 api.get('/elo/:model', (req, res) => res.json(elo.getEloHistory(decodeURIComponent(req.params.model))));
-api.get('/stats', (req, res) => res.json(db.getStats()));
+api.get('/stats', (req, res) => res.json(db.getStats(req.query.gameType)));
 
 api.get('/status', (req, res) => {
   const running = listRunningGames();

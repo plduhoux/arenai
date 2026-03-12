@@ -265,61 +265,61 @@ export function getGameLogs(id) {
     .map(row => ({ ...JSON.parse(row.data), _seq: row.seq }));
 }
 
-export function getStats() {
+// Winner labels per game type
+const GOOD_WINNERS = ['liberal', 'villager', 'blue'];
+const EVIL_WINNERS = ['fascist', 'werewolf', 'red'];
+
+export function getStats(gameType) {
   const db = getDb();
+  const where = gameType ? `AND game_type = '${gameType}'` : '';
 
   const totals = db.prepare(`
     SELECT
       COUNT(*) as total,
-      SUM(CASE WHEN winner = 'liberal' THEN 1 ELSE 0 END) as liberal_wins,
-      SUM(CASE WHEN winner = 'fascist' THEN 1 ELSE 0 END) as fascist_wins,
-      AVG(rounds) as avg_rounds,
-      AVG(policies_liberal) as avg_liberal_policies,
-      AVG(policies_fascist) as avg_fascist_policies
-    FROM games WHERE status = 'finished'
+      SUM(CASE WHEN winner IN ('liberal','villager','blue') THEN 1 ELSE 0 END) as good_wins,
+      SUM(CASE WHEN winner IN ('fascist','werewolf','red') THEN 1 ELSE 0 END) as evil_wins,
+      AVG(rounds) as avg_rounds
+    FROM games WHERE status = 'finished' ${where}
   `).get();
 
   const byReason = db.prepare(`
     SELECT win_reason, COUNT(*) as count
-    FROM games WHERE status = 'finished'
+    FROM games WHERE status = 'finished' ${where}
     GROUP BY win_reason
   `).all();
 
-    // Stats per model: a model "wins" when it played on the winning side
   const byModelRaw = db.prepare(`
-    SELECT
-      model_good, model_evil, winner,
-      COUNT(*) as count
-    FROM games WHERE status = 'finished'
+    SELECT model_good, model_evil, winner, COUNT(*) as count
+    FROM games WHERE status = 'finished' ${where}
     GROUP BY model_good, model_evil, winner
   `).all();
 
-  // Aggregate: for each model, count games played (as liberal + as fascist) and wins
   const modelMap = {};
   for (const row of byModelRaw) {
-    const mLib = row.model_good || row.model_evil || 'unknown';
-    const mFas = row.model_evil || row.model_good || 'unknown';
+    const mGood = row.model_good || row.model_evil || 'unknown';
+    const mEvil = row.model_evil || row.model_good || 'unknown';
+    const goodWon = GOOD_WINNERS.includes(row.winner);
+    const evilWon = EVIL_WINNERS.includes(row.winner);
 
-    if (!modelMap[mLib]) modelMap[mLib] = { model: mLib, played: 0, wins: 0, asLiberal: 0, libWins: 0, asFascist: 0, fasWins: 0 };
-    if (!modelMap[mFas]) modelMap[mFas] = { model: mFas, played: 0, wins: 0, asLiberal: 0, libWins: 0, asFascist: 0, fasWins: 0 };
+    if (!modelMap[mGood]) modelMap[mGood] = { model: mGood, played: 0, wins: 0, asGood: 0, goodWins: 0, asEvil: 0, evilWins: 0 };
+    if (!modelMap[mEvil]) modelMap[mEvil] = { model: mEvil, played: 0, wins: 0, asGood: 0, goodWins: 0, asEvil: 0, evilWins: 0 };
 
-    modelMap[mLib].played += row.count;
-    modelMap[mLib].asLiberal += row.count;
-    if (row.winner === 'liberal') { modelMap[mLib].wins += row.count; modelMap[mLib].libWins += row.count; }
+    modelMap[mGood].played += row.count;
+    modelMap[mGood].asGood += row.count;
+    if (goodWon) { modelMap[mGood].wins += row.count; modelMap[mGood].goodWins += row.count; }
 
-    if (mFas !== mLib) {
-      modelMap[mFas].played += row.count;
+    if (mEvil !== mGood) {
+      modelMap[mEvil].played += row.count;
     }
-    modelMap[mFas].asFascist += row.count;
-    if (row.winner === 'fascist') { modelMap[mFas].wins += row.count; modelMap[mFas].fasWins += row.count; }
+    modelMap[mEvil].asEvil += row.count;
+    if (evilWon) { modelMap[mEvil].wins += row.count; modelMap[mEvil].evilWins += row.count; }
   }
   const byModel = Object.values(modelMap).sort((a, b) => b.played - a.played);
 
-  const recent = db.prepare(`
-    SELECT id, model, winner, win_reason, rounds, created_at
-    FROM games WHERE status = 'finished'
-    ORDER BY created_at DESC LIMIT 10
-  `).all();
+  // Game type list for tabs
+  const gameTypes = db.prepare(`
+    SELECT DISTINCT game_type FROM games WHERE status = 'finished'
+  `).all().map(r => r.game_type);
 
-  return { totals, byReason, byModel, recent };
+  return { totals, byReason, byModel, gameTypes };
 }

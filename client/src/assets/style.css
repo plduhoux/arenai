@@ -672,6 +672,41 @@ h3 { font-size: 1.1rem; }
   word-break: break-all;
 }
 
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.tab-btn {
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0 0;
+  color: var(--text2);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+  background: var(--card);
+}
+
+/* Generic good/evil colors */
+.good { color: var(--blue); }
+.evil { color: var(--danger); }
+.good-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
 /* Settings */
 .settings-view { max-width: 800px; margin: 0 auto; }
 .settings-desc { color: var(--text2); margin-bottom: 1.5rem; }
