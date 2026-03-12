@@ -13,7 +13,7 @@
 
 import * as engine from './engine.js';
 import * as prompts from './prompts.js';
-import { askLLM } from '../../core/llm-client.js';
+
 
 export const id = 'secret-hitler';
 export const name = 'Secret Hitler';

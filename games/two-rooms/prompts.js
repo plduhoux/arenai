@@ -22,8 +22,7 @@ function buildSystemPrompt(game, playerIndex) {
       roleInfo = `You are the PRESIDENT (Blue Team). Blue wins if you are NOT in the same room as the Bomber after the final exchange. Stay hidden or reveal strategically. Your team needs to protect you.`;
       break;
     case 'bomber':
-      roleInfo = `You are the BOMBER (Red Team). Red wins if you end up in the same room as the President after the final exchange. Find the President. Get yourself sent to their room, or get them sent to yours.
-RULE: verbal claims are never verifiable. Only physically sharing your card proves anything. Players can claim any team or role when speaking.`;
+      roleInfo = `You are the BOMBER (Red Team). Red wins if you end up in the same room as the President after the final exchange. Find the President. Get yourself sent to their room, or get them sent to yours.`;
       break;
     case 'gambler':
       roleInfo = `You are the GAMBLER (Grey Team). You win by correctly predicting which team wins (Blue or Red). Gather info from both sides. At the end, you must announce your prediction.`;
@@ -32,8 +31,7 @@ RULE: verbal claims are never verifiable. Only physically sharing your card prov
       if (player.team === 'blue') {
         roleInfo = `You are a BLUE AGENT. Blue wins if the President is NOT in the same room as the Bomber. Find the President and protect them. Find the Bomber and keep them away.`;
       } else {
-        roleInfo = `You are a RED AGENT. Red wins if the Bomber IS in the same room as the President. Find the President's location and help the Bomber reach them.
-RULE: verbal claims are never verifiable. Only physically sharing your card proves anything. Players can claim any team or role when speaking.`;
+        roleInfo = `You are a RED AGENT. Red wins if the Bomber IS in the same room as the President. Find the President's location and help the Bomber reach them.`;
       }
   }
 

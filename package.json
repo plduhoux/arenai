@@ -1,7 +1,7 @@
 {
   "name": "arenai",
   "version": "0.1.0",
-  "description": "Secret Hitler played by LLMs - watch AI models bluff, vote, and legislate",
+  "description": "LLMs play social deduction games against each other. Secret Hitler, Werewolf, Two Rooms and a Boom.",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -20,12 +20,15 @@
     "concurrently": "^9.2.1"
   },
   "keywords": [
-    "secret-hitler",
-    "ai",
+    "arenai",
     "llm",
-    "game-simulation",
-    "anthropic",
-    "claude"
+    "benchmark",
+    "social-deduction",
+    "secret-hitler",
+    "werewolf",
+    "two-rooms",
+    "ai",
+    "game-simulation"
   ],
   "license": "MIT"
 }

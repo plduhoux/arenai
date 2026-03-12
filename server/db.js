@@ -1,6 +1,6 @@
 /**
- * Secret Hitler — Database (SQLite)
- * Persists games, logs, and stats.
+ * ArenAI - Database (SQLite)
+ * Persists games, logs, stats, providers, and models.
  */
 
 import Database from 'better-sqlite3';
