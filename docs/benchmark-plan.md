@@ -9,7 +9,7 @@ Measure and compare social cognition capabilities of frontier LLMs through three
 | Model | Provider | Input $/M | Output $/M | Notes |
 |---|---|---|---|---|
 | Claude Opus 4.6 | Anthropic | $0 | $0 | Free via Claude Max subscription |
-| GPT-5.2 | OpenAI | $1.75 | $14.00 | Flagship reasoning |
+| GPT-5.4 | OpenAI | $1.75 | $14.00 | Flagship reasoning |
 | Gemini 2.5 Pro | Google | $1.25 | $10.00 | Strong defender (per Foaster) |
 | Grok 4 | xAI | $3.00 | $15.00 | Aggressive attacker (per Foaster) |
 | Kimi K2.5 | Moonshot | $0.60 | $3.50 | Cheapest frontier model |
@@ -18,7 +18,7 @@ Measure and compare social cognition capabilities of frontier LLMs through three
 
 Round-robin: every model plays against every other model. 5 models = 10 unique pairs.
 
-Each pair plays **10 games per game type**. In each game, one model controls the "good" faction and the other controls the "evil" faction. Roles alternate: 5 games as good, 5 as evil per pair.
+Each pair plays **10 games per game type**. In each game, one model controls the "good" faction and the other controls the "evil" faction. **Roles must be balanced: exactly 5 games as good and 5 as evil per model per pair.** This eliminates faction bias from the results (e.g., wolves winning more often doesn't inflate one model's score).
 
 - 10 pairs x 10 games = **100 games per game type**
 - Each model plays 40 games per game type (4 opponents x 10)
@@ -59,14 +59,14 @@ Each pair plays **10 games per game type**. In each game, one model controls the
 Each game has two factions. Each model controls one faction and uses roughly half the tokens.
 
 **Measured cost (Two Rooms, 10 players, 3 rounds, ~106 API calls):**
-- GPT-5.2 half: **$0.14** (54 calls, 65K tokens)
+- GPT-5.4 half: **$0.14** (54 calls, 65K tokens)
 - Claude Opus 4.6 half: **$0** (free via Max)
 - Full game Two Rooms: **$0.14** when one side is Claude
 
 | Model | Two Rooms | Werewolf (est.) | Secret Hitler (est.) |
 |---|---|---|---|
 | Claude Opus 4.6 | $0 | $0 | $0 |
-| GPT-5.2 | $0.14 | $0.35 | $0.55 |
+| GPT-5.4 | $0.14 | $0.35 | $0.55 |
 | Gemini 2.5 Pro | $0.10 | $0.25 | $0.40 |
 | Grok 4 | $0.20 | $0.50 | $0.75 |
 | Kimi K2.5 | $0.04 | $0.10 | $0.15 |
@@ -80,7 +80,7 @@ Cost = half-game cost x 120.
 | Provider | Model | Budget | Notes |
 |---|---|---|---|
 | Anthropic | Claude Opus 4.6 | **$0** | Claude Max subscription ($200/mo flat) |
-| OpenAI | GPT-5.2 | **~$60** | 4 pairs, most expensive output tokens |
+| OpenAI | GPT-5.4 | **~$60** | 4 pairs, most expensive output tokens |
 | Google | Gemini 2.5 Pro | **~$40** | 4 pairs, competitive pricing |
 | xAI | Grok 4 | **~$45** | 4 pairs, same price tier as Sonnet |
 | Moonshot | Kimi K2.5 | **~$25** | 4 pairs, budget frontier model |
