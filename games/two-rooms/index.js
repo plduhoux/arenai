@@ -1,0 +1,257 @@
+/**
+ * Two Rooms and a Boom - Game Plugin
+ * Standard plugin interface for the ArenAI.
+ */
+
+import * as engine from './engine.js';
+import * as prompts from './prompts.js';
+
+export const id = 'two-rooms';
+export const name = 'Two Rooms and a Boom';
+export const description = 'Two teams, two rooms, one bomb. Blue protects the President. Red sends the Bomber. 3 rounds of social deduction with hostage exchanges.';
+
+export const defaultConfig = {
+  playerCount: 8,
+  names: ['Alice', 'Bruno', 'Clara', 'David', 'Eva', 'Felix', 'Gina', 'Hugo', 'Iris', 'Jules'],
+  model: 'claude-sonnet-4-5',
+  enableThoughts: false,
+};
+
+export function setup(options = {}) {
+  const playerCount = options.playerCount || defaultConfig.playerCount;
+  const names = (options.names || defaultConfig.names).slice(0, playerCount);
+  const model = options.model || defaultConfig.model;
+
+  return engine.createGame(names, {
+    model,
+    modelBlue: options.modelLiberal || options.modelBlue || model,
+    modelRed: options.modelFascist || options.modelRed || model,
+    enableThoughts: options.enableThoughts ?? defaultConfig.enableThoughts,
+  });
+}
+
+export function isOver(game) {
+  return game.phase === 'done';
+}
+
+export function recoverFromError(game) {
+  if (game.phase === 'discussion') game.phase = 'leader_pick';
+  else if (game.phase === 'leader_pick') game.phase = 'hostage_pick';
+  else if (game.phase === 'hostage_pick') game.phase = 'exchange';
+  else if (game.phase === 'exchange') {
+    if (game.round >= game.maxRounds) game.phase = 'gambler_guess';
+    else { game.round++; game.phase = 'discussion'; }
+  } else if (game.phase === 'gambler_guess') {
+    engine.checkWin(game);
+  }
+}
+
+export function forceEnd(game, reason) {
+  game.winner = 'draw';
+  game.winReason = reason;
+  game.phase = 'done';
+  game.log.push({ type: 'game_over', winner: 'draw', reason: `Game ended: ${reason}` });
+}
+
+export function getDisplayState(game) {
+  const roomA = engine.getPlayersInRoom(game, 'A');
+  const roomB = engine.getPlayersInRoom(game, 'B');
+  return {
+    roomACount: roomA.length,
+    roomBCount: roomB.length,
+    round: game.round,
+    maxRounds: game.maxRounds,
+    leaderA: game.leaderA !== null ? game.players[game.leaderA]?.name : null,
+    leaderB: game.leaderB !== null ? game.players[game.leaderB]?.name : null,
+  };
+}
+
+export function getCurrentPhase(game) {
+  switch (game.phase) {
+    case 'discussion': return { name: 'discussion', execute: phaseDiscussion };
+    case 'leader_pick': return { name: 'leader_pick', execute: phaseLeaderPick };
+    case 'hostage_pick': return { name: 'hostage_pick', execute: phaseHostagePick };
+    case 'exchange': return { name: 'exchange', execute: phaseExchange };
+    case 'gambler_guess': return { name: 'gambler_guess', execute: phaseGamblerGuess };
+    default: return null;
+  }
+}
+
+// --- Phases ---
+
+function narrate(onEvent, text) {
+  onEvent({ type: 'narrator', message: text });
+}
+
+async function phaseDiscussion(game, { onEvent }) {
+  const display = getDisplayState(game);
+  // Degressive discussion: 3 turns round 1, 2 turns round 2, 1 turn round 3
+  const discussionTurns = Math.max(1, 4 - game.round);
+  narrate(onEvent, `Round ${game.round}/${game.maxRounds}: Room A (${display.roomACount}) and Room B (${display.roomBCount}). ${discussionTurns} discussion turn(s).`);
+  onEvent({ type: 'round_start', round: game.round, ...display });
+
+  const roomAPlayers = engine.getPlayerIndicesInRoom(game, 'A');
+  const roomBPlayers = engine.getPlayerIndicesInRoom(game, 'B');
+
+  for (let turn = 0; turn < discussionTurns; turn++) {
+    if (turn > 0) narrate(onEvent, `Discussion turn ${turn + 1}/${discussionTurns}.`);
+
+    // Both rooms discuss in parallel
+    const allPromises = [
+      ...roomAPlayers.map(i => prompts.getRoomDiscussion(game, i, turn).then(r => ({ ...r, playerIndex: i, room: 'A' }))),
+      ...roomBPlayers.map(i => prompts.getRoomDiscussion(game, i, turn).then(r => ({ ...r, playerIndex: i, room: 'B' }))),
+    ];
+
+    const results = await Promise.all(allPromises);
+
+    for (const room of ['A', 'B']) {
+      const roomResults = results.filter(r => r.room === room);
+      const roomPlayers = room === 'A' ? roomAPlayers : roomBPlayers;
+      const names = roomPlayers.map(i => game.players[i].name).join(', ');
+      onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, players: names });
+
+      for (const r of roomResults) {
+        const player = game.players[r.playerIndex];
+
+        if (r.message && r.message !== 'PASS') {
+          game.log.push({ type: 'discussion', round: game.round, room, player: r.playerIndex, playerName: player.name, message: r.message });
+          onEvent({ type: 'discussion', room, player: player.name, message: r.message });
+        }
+      }
+    }
+  }
+
+  // Dedicated card sharing phase (after discussion, before leader vote)
+  narrate(onEvent, `Card sharing: players may privately show their card to one person in their room.`);
+  const sharePromises = [
+    ...roomAPlayers.map(i => prompts.getCardShare(game, i).then(r => ({ ...r, playerIndex: i, room: 'A' }))),
+    ...roomBPlayers.map(i => prompts.getCardShare(game, i).then(r => ({ ...r, playerIndex: i, room: 'B' }))),
+  ];
+  const shareResults = await Promise.all(sharePromises);
+
+  for (const r of shareResults) {
+    if (r.share && r.target !== null) {
+      const player = game.players[r.playerIndex];
+      const targetPlayer = game.players[r.target];
+      if (targetPlayer && targetPlayer.room === r.room) {
+        engine.addShare(game, r.playerIndex, r.target, r.shareType || 'color');
+        onEvent({
+          type: 'share', room: r.room,
+          player: player.name,
+          target: targetPlayer.name,
+          shareType: r.shareType || 'color',
+        });
+      }
+    }
+  }
+
+  game.phase = 'leader_pick';
+}
+
+async function phaseLeaderPick(game, { onEvent }) {
+  // Only pick leaders in round 1 (leaders persist)
+  if (game.round > 1 && game.leaderA !== null && game.leaderB !== null) {
+    // Check leaders are still in their rooms
+    if (game.players[game.leaderA].room !== 'A') game.leaderA = null;
+    if (game.players[game.leaderB].room !== 'B') game.leaderB = null;
+  }
+
+  for (const room of ['A', 'B']) {
+    const currentLeader = room === 'A' ? game.leaderA : game.leaderB;
+    if (currentLeader !== null && game.players[currentLeader].room === room) continue;
+
+    narrate(onEvent, `Room ${room} needs a leader.`);
+
+    const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
+    const votePromises = roomPlayers.map(i =>
+      prompts.getLeaderVote(game, i).then(pick => ({ voter: i, pick }))
+    );
+    const votes = await Promise.all(votePromises);
+
+    // Count votes
+    const counts = {};
+    for (const { voter, pick } of votes) {
+      counts[pick] = (counts[pick] || 0) + 1;
+      onEvent({ type: 'leader_vote', room, voter: game.players[voter].name, pick: game.players[pick].name });
+    }
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const leaderId = parseInt(sorted[0][0]);
+    engine.setLeader(game, room, leaderId);
+
+    narrate(onEvent, `${game.players[leaderId].name} is elected leader of Room ${room}.`);
+    onEvent({ type: 'leader_elected', room, player: game.players[leaderId].name, ...getDisplayState(game) });
+  }
+
+  game.phase = 'hostage_pick';
+}
+
+async function phaseHostagePick(game, { onEvent }) {
+  const hostageCount = engine.getHostageCount(game);
+  narrate(onEvent, `Leaders choose ${hostageCount} hostage(s) to exchange.`);
+
+  // Both leaders pick simultaneously
+  const [picksA, picksB] = await Promise.all([
+    prompts.getHostagePick(game, game.leaderA),
+    prompts.getHostagePick(game, game.leaderB),
+  ]);
+
+  engine.setHostages(game, 'A', picksA);
+  engine.setHostages(game, 'B', picksB);
+
+  onEvent({
+    type: 'hostage_selected',
+    roomA: picksA.map(i => game.players[i].name),
+    roomB: picksB.map(i => game.players[i].name),
+  });
+
+  game.phase = 'exchange';
+}
+
+async function phaseExchange(game, { onEvent }) {
+  const aToB = game.hostagesAtoB.map(i => game.players[i].name);
+  const bToA = game.hostagesBtoA.map(i => game.players[i].name);
+
+  engine.executeExchange(game);
+
+  narrate(onEvent, `Exchange: ${aToB.join(', ')} moved to Room B. ${bToA.join(', ')} moved to Room A.`);
+  onEvent({
+    type: 'exchange',
+    aToB,
+    bToA,
+    round: game.round,
+    ...getDisplayState(game),
+  });
+
+  if (game.round >= game.maxRounds) {
+    if (game.hasGambler) {
+      game.phase = 'gambler_guess';
+    } else {
+      engine.checkWin(game);
+    }
+  } else {
+    game.round++;
+    game.phase = 'discussion';
+  }
+}
+
+async function phaseGamblerGuess(game, { onEvent }) {
+  const gamblerIndex = game.players.findIndex(p => p.role === 'gambler');
+  if (gamblerIndex === -1) {
+    engine.checkWin(game);
+    return;
+  }
+
+  narrate(onEvent, `${game.players[gamblerIndex].name} (Gambler) must predict the winner before cards are revealed.`);
+
+  const guess = await prompts.getGamblerGuess(game, gamblerIndex);
+  game.gamblerGuess = guess;
+
+  onEvent({
+    type: 'gambler_prediction',
+    player: game.players[gamblerIndex].name,
+    prediction: guess,
+  });
+
+  engine.checkWin(game);
+}
