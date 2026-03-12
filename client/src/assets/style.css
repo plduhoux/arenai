@@ -698,11 +698,11 @@ h3 { font-size: 1.1rem; }
 }
 
 /* Generic good/evil colors */
-.good { color: var(--blue); }
+.good { color: var(--liberal); }
 .evil { color: var(--danger); }
 .good-fill {
   height: 100%;
-  background: var(--blue);
+  background: var(--liberal);
   border-radius: 4px;
   transition: width 0.3s;
 }

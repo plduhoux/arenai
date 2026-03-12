@@ -24,7 +24,7 @@
         <h3>Win Rate</h3>
         <div class="win-rate-row">
           <span class="good">{{ labels.good }} {{ goodPct }}%</span>
-          <span class="evil">{{ labels.evil }} {{ 100 - goodPct }}%</span>
+          <span class="evil">{{ labels.evil }} {{ evilPct }}%</span>
         </div>
         <div class="win-bar">
           <div class="good-fill" :style="{ width: goodPct + '%' }" />
@@ -121,8 +121,11 @@ const labels = computed(() => {
 
 const goodPct = computed(() => {
   const t = stats.value?.totals
-  return t?.total > 0 ? Math.round((t.good_wins / t.total) * 100) : 0
+  const decided = (t?.good_wins || 0) + (t?.evil_wins || 0)
+  return decided > 0 ? Math.round((t.good_wins / decided) * 100) : 0
 })
+
+const evilPct = computed(() => 100 - goodPct.value)
 
 function winPct(m) {
   return m.played > 0 ? Math.round((m.wins / m.played) * 100) : 0
