@@ -85,7 +85,7 @@ const router = useRouter()
 
 const GAME_DEFAULTS = {
   'secret-hitler': { playerCount: 5, enableThoughts: false, discussionRounds: 1 },
-  'werewolf': { playerCount: 6, enableThoughts: true, discussionRounds: 2 },
+  'werewolf': { playerCount: 7, enableThoughts: true, discussionRounds: 2 },
   'two-rooms': { playerCount: 10, enableThoughts: false, discussionRounds: 1 },
 }
 
