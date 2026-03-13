@@ -52,7 +52,7 @@ export function useGameSSE() {
     if (event.tokensTotalSent !== undefined) state.value.tokensTotalSent = event.tokensTotalSent
     else if (event.tokensInput !== undefined) state.value.tokensTotalSent = (event.tokensInput || 0) + (event.tokensCacheRead || 0) + (event.tokensCacheWrite || 0)
     if (event.apiCalls !== undefined) state.value.apiCalls = event.apiCalls
-    if (event.players) state.value.players = event.players
+    if (event.players && Array.isArray(event.players)) state.value.players = event.players
   }
 
   // Start a new game: POST to create, then connect to stream
@@ -122,7 +122,7 @@ export function useGameSSE() {
         state.value.winReason = data.winReason
         state.value.round = data.rounds
         if (data.gameType) state.value.gameType = data.gameType
-        if (data.players) state.value.players = data.players
+        if (data.players && Array.isArray(data.players)) state.value.players = data.players
         if (data.tokensInput) state.value.tokensInput = data.tokensInput
         if (data.tokensOutput) state.value.tokensOutput = data.tokensOutput
         if (data.tokensCacheRead) state.value.tokensCacheRead = data.tokensCacheRead

@@ -134,7 +134,7 @@ const content = computed(() => {
 
     // Two Rooms events
     case 'room_header':
-      return `<div class="room-header room-header-${e.room?.toLowerCase()}">Room ${esc(e.room)} <span class="room-players">${esc(e.players)}</span></div>`
+      return `<div class="room-header room-header-${e.room?.toLowerCase()}">Room ${esc(e.room)} <span class="room-players">${esc(e.playerNames || e.players)}</span></div>`
 
     case 'share':
       return `<span class="live-label">Share</span> ${pname(e.player)} shows ${e.shareType} to ${pname(e.target)} [Room ${esc(e.room)}]`

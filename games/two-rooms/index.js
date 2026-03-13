@@ -117,7 +117,7 @@ async function phaseDiscussion(game, { onEvent, checkPause }) {
 async function runRoomDiscussion(game, room, turn, onEvent, checkPause) {
   const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
   const names = roomPlayers.map(i => game.players[i].name).join(', ');
-  onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, players: names });
+  onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, playerNames: names });
 
   // Shuffle speaking order each turn
   const order = [...roomPlayers].sort(() => Math.random() - 0.5);
