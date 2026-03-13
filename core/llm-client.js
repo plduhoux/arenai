@@ -270,7 +270,7 @@ export async function askLLMSession({
   playerKey,
   parseResponse = (text) => text,
   retries = 2,
-  maxTokens = 300,
+  maxTokens = 500,
 }) {
   const provider = getProviderForModel(model);
   const session = getSession(gameId, playerKey || playerName, systemPrompt);
@@ -329,7 +329,7 @@ export async function askLLM({
   playerName = 'Player',
   parseResponse = (text) => text,
   retries = 2,
-  maxTokens = 300,
+  maxTokens = 500,
 }) {
   const provider = getProviderForModel(model);
 
