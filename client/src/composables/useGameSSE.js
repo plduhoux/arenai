@@ -121,6 +121,8 @@ export function useGameSSE() {
         state.value.winner = data.winner
         state.value.winReason = data.winReason
         state.value.round = data.rounds
+        if (data.gameType) state.value.gameType = data.gameType
+        if (data.players) state.value.players = data.players
         if (data.tokensInput) state.value.tokensInput = data.tokensInput
         if (data.tokensOutput) state.value.tokensOutput = data.tokensOutput
         if (data.tokensCacheRead) state.value.tokensCacheRead = data.tokensCacheRead

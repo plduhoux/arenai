@@ -238,9 +238,11 @@ api.post('/games/run', async (req, res) => {
     const doneData = {
       id: game.id,
       status: 'finished',
+      gameType: game.gameType,
       winner: game.winner,
       winReason: game.winReason,
       rounds: game.round,
+      players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model })),
       tokensInput: tokens.input,
       tokensOutput: tokens.output,
       tokensCacheRead: tokens.cacheRead || 0,
