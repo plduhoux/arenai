@@ -162,7 +162,7 @@ async function phaseMayorElection(game, { onEvent }) {
 }
 
 // Night Phase
-async function phaseNight(game, { onEvent }) {
+async function phaseNight(game, { onEvent, checkPause }) {
   narrate(onEvent, `Night ${game.round}: the village sleeps. Werewolves, Seer, and Witch act in secret.`);
   onEvent({ type: 'night_start', round: game.round, ...getDisplayState(game) });
 
@@ -172,6 +172,7 @@ async function phaseNight(game, { onEvent }) {
     const chatHistory = [];
     for (let turn = 0; turn < 2; turn++) {
       for (const wolf of wolves) {
+        if (checkPause) await checkPause();
         const result = await prompts.getWolfChat(game, wolf.index, chatHistory);
         chatHistory.push({ name: game.players[wolf.index].name, message: result.message });
         game.log.push({
@@ -259,7 +260,7 @@ async function phaseNight(game, { onEvent }) {
 // Each player speaks one at a time. Each subsequent speaker sees all previous messages.
 // Round 1: randomized order (mayor speaks first if alive).
 // Round 2: mentioned/attacked players speak first, then others.
-async function phaseDayDiscussion(game, { onEvent }) {
+async function phaseDayDiscussion(game, { onEvent, checkPause }) {
   const alive = engine.getAliveIndices(game);
   const rounds = Math.max(1, game.discussionRounds || 2);
 
@@ -269,6 +270,7 @@ async function phaseDayDiscussion(game, { onEvent }) {
     const speakingOrder = getSpeakingOrder(game, alive, dr);
 
     for (const playerIndex of speakingOrder) {
+      if (checkPause) await checkPause();
       const { stance, message, thought } = await prompts.getDayDiscussion(game, playerIndex);
 
       if (thought) {

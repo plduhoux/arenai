@@ -86,7 +86,7 @@ function narrate(onEvent, text) {
 // Discussion — Room Talk (sequential within each room, rooms in parallel)
 // Within each room, players speak one at a time so they can react to each other.
 // Both rooms run in parallel (they can't hear each other anyway).
-async function phaseDiscussion(game, { onEvent }) {
+async function phaseDiscussion(game, { onEvent, checkPause }) {
   const display = getDisplayState(game);
   // Degressive discussion: 3 turns round 1, 2 turns round 2, 1 turn round 3
   const discussionTurns = Math.max(1, 4 - game.round);
@@ -98,8 +98,8 @@ async function phaseDiscussion(game, { onEvent }) {
 
     // Both rooms discuss in parallel, but within each room it's sequential
     await Promise.all([
-      runRoomDiscussion(game, 'A', turn, onEvent),
-      runRoomDiscussion(game, 'B', turn, onEvent),
+      runRoomDiscussion(game, 'A', turn, onEvent, checkPause),
+      runRoomDiscussion(game, 'B', turn, onEvent, checkPause),
     ]);
   }
 
@@ -114,7 +114,7 @@ async function phaseDiscussion(game, { onEvent }) {
 }
 
 // Sequential discussion within a single room
-async function runRoomDiscussion(game, room, turn, onEvent) {
+async function runRoomDiscussion(game, room, turn, onEvent, checkPause) {
   const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
   const names = roomPlayers.map(i => game.players[i].name).join(', ');
   onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, players: names });
@@ -123,6 +123,7 @@ async function runRoomDiscussion(game, room, turn, onEvent) {
   const order = [...roomPlayers].sort(() => Math.random() - 0.5);
 
   for (const playerIndex of order) {
+    if (checkPause) await checkPause();
     const result = await prompts.getRoomDiscussion(game, playerIndex, turn);
     const player = game.players[playerIndex];
 

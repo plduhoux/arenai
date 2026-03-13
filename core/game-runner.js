@@ -103,8 +103,23 @@ export async function runGame(gamePlugin, options = {}) {
             apiCalls: tokens.calls,
           });
         },
+        // Allow phases to check pause/stop between sequential calls
+        async checkPause() {
+          if (control.stopped) throw new Error('GAME_STOPPED');
+          if (control.paused) {
+            onEvent({ type: 'game_paused', round: game.round });
+            await new Promise(resolve => { control.resumeResolve = resolve; });
+            if (control.stopped) throw new Error('GAME_STOPPED');
+            onEvent({ type: 'game_resumed', round: game.round });
+          }
+        },
       });
     } catch (err) {
+      if (err.message === 'GAME_STOPPED') {
+        gamePlugin.forceEnd(game, 'stopped_by_user');
+        break;
+      }
+
       console.error(`Error in round ${game.round}:`, err.message, err.stack);
       game.log.push({ type: 'error', round: game.round, message: err.message });
       onEvent({ type: 'error', round: game.round, message: err.message });
