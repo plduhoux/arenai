@@ -2,28 +2,24 @@
   <div class="new-game">
     <h1>New Game</h1>
 
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Game</label>
-        <select v-model="gameType">
-          <option value="secret-hitler">Secret Hitler</option>
-          <option value="werewolf">Werewolf (Loup-Garou)</option>
-          <option value="two-rooms">Two Rooms and a Boom</option>
-        </select>
-      </div>
+    <div class="game-selector">
+      <button
+        v-for="g in games"
+        :key="g.id"
+        class="game-card"
+        :class="{ selected: gameType === g.id }"
+        @click="gameType = g.id"
+      >
+        <span class="game-card-icon">{{ g.icon }}</span>
+        <span class="game-card-name">{{ g.name }}</span>
+        <span class="game-card-desc">{{ g.desc }}</span>
+      </button>
+    </div>
 
+    <div class="options-stack">
       <div class="form-group">
         <label>Players: {{ playerCount }}</label>
         <input type="range" v-model.number="playerCount" :min="minPlayers" :max="maxPlayers" />
-      </div>
-
-      <div class="form-group" v-if="gameType === 'secret-hitler'">
-        <label>Terminology</label>
-        <select v-model="termsKey">
-          <option value="neutral">Neutral (Dictator)</option>
-          <option value="original">Original (Hitler)</option>
-          <option value="fantasy">Fantasy (Shadow Lord)</option>
-        </select>
       </div>
 
       <div class="form-group">
@@ -37,6 +33,15 @@
         <label>{{ factionLabels.evil }} Model</label>
         <select v-model="modelEvil">
           <option v-for="m in availableModels" :key="m.value" :value="m.value">{{ m.label }}</option>
+        </select>
+      </div>
+
+      <div class="form-group" v-if="gameType === 'secret-hitler'">
+        <label>Terminology</label>
+        <select v-model="termsKey">
+          <option value="neutral">Neutral (Dictator)</option>
+          <option value="original">Original (Hitler)</option>
+          <option value="fantasy">Fantasy (Shadow Lord)</option>
         </select>
       </div>
 
@@ -88,6 +93,12 @@ const GAME_DEFAULTS = {
   'werewolf': { playerCount: 7, enableThoughts: true, discussionRounds: 2 },
   'two-rooms': { playerCount: 10, enableThoughts: false, discussionRounds: 1 },
 }
+
+const games = [
+  { id: 'werewolf', name: 'Werewolf', icon: '\u{1F43A}', desc: 'Classic social deduction. Villagers vs wolves. Seer, Witch, Mayor.' },
+  { id: 'secret-hitler', name: 'Secret Dictator', icon: '\u{1F3DB}', desc: 'Hidden roles, policy cards, legislative deception. 5-10 players.' },
+  { id: 'two-rooms', name: 'Two Rooms', icon: '\u{1F4A3}', desc: 'Two teams, two rooms, hostage exchanges. Find the President.' },
+]
 
 const gameType = ref('werewolf')
 const playerCount = ref(GAME_DEFAULTS['werewolf'].playerCount)
