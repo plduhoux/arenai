@@ -63,7 +63,7 @@
         </select>
       </div>
 
-      <div class="form-group" v-if="gameType !== 'two-rooms'">
+      <div class="form-group">
         <label>
           <input type="checkbox" v-model="enableThoughts" />
           Private thoughts (players reason internally before speaking - costs more tokens)
@@ -91,7 +91,7 @@ const router = useRouter()
 const GAME_DEFAULTS = {
   'secret-hitler': { playerCount: 5, enableThoughts: false, discussionRounds: 1 },
   'werewolf': { playerCount: 7, enableThoughts: true, discussionRounds: 2 },
-  'two-rooms': { playerCount: 10, enableThoughts: false, discussionRounds: 1 },
+  'two-rooms': { playerCount: 10, enableThoughts: true, discussionRounds: 1 },
 }
 
 const games = [

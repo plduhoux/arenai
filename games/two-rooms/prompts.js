@@ -191,21 +191,27 @@ export function getRoomDiscussion(game, playerIndex, turn = 0) {
     .map(p => `${p.name} (#${p.index})`).join(', ');
 
   const first = isFirstCall(game, playerIndex, 'discussion');
+  const thoughtPrompt = game.enableThoughts
+    ? `\nTHOUGHT: your private strategy (1 sentence, not shared)`
+    : '';
 
   const prompt = first
     ? `DISCUSSION (Room ${room}, Round ${game.round}/${game.maxRounds}, turn ${turn + 1}/${discussionTurns}).
 
 Other players here: ${roommates}
 
-Reply with MESSAGE: your statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
-    : `Your turn to speak (Room ${room}, turn ${turn + 1}/${discussionTurns}).\nMESSAGE: your statement or PASS`;
+You may LIE about your team/role verbally. Only card shares are verified.
+${thoughtPrompt}
+MESSAGE: your public statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
+    : `Your turn to speak (Room ${room}, turn ${turn + 1}/${discussionTurns}).${thoughtPrompt}\nMESSAGE: your statement or PASS`;
 
   return ask(game, playerIndex, prompt,
     (text) => {
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\n(?:MESSAGE|$))/is);
       const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
-      const message = messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : text.trim();
-      if (!message || message === 'PASS') return { action: 'pass', message: 'PASS' };
-      return { action: 'discuss', message };
+      const message = messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : text.replace(/THOUGHT:.*$/is, '').trim();
+      if (!message || message === 'PASS') return { action: 'pass', message: 'PASS', thought: thoughtMatch?.[1]?.trim() || null };
+      return { action: 'discuss', message, thought: thoughtMatch?.[1]?.trim() || null };
     },
   );
 }
@@ -222,6 +228,9 @@ export function getCardShare(game, playerIndex) {
   const knownNames = Object.values(knowledge).map(k => k.name);
 
   const first = isFirstCall(game, playerIndex, 'card_share');
+  const thoughtPrompt = game.enableThoughts
+    ? `\nTHOUGHT: your private reasoning (1 sentence)`
+    : '';
 
   const prompt = first
     ? `CARD SHARING (Room ${room}, Round ${game.round}/${game.maxRounds}).
@@ -229,11 +238,11 @@ You may privately show your card to ONE player in your room. This is verified by
 
 Players here: ${roommates}
 ${knownNames.length ? `You already verified: ${knownNames.join(', ')}` : 'You haven\'t verified anyone yet.'}
-
+${thoughtPrompt}
 SHARE: yes/no
 TARGET: player number (if yes)
 SHARE_TYPE: color/card`
-    : `Card sharing phase. Players here: ${roommates}\nSHARE: yes/no\nTARGET: player number\nSHARE_TYPE: color/card`;
+    : `Card sharing phase. Players here: ${roommates}${thoughtPrompt}\nSHARE: yes/no\nTARGET: player number\nSHARE_TYPE: color/card`;
 
   return ask(game, playerIndex, prompt,
     (text) => {

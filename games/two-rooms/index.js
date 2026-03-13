@@ -127,6 +127,10 @@ async function runRoomDiscussion(game, room, turn, onEvent, checkPause) {
     const result = await prompts.getRoomDiscussion(game, playerIndex, turn);
     const player = game.players[playerIndex];
 
+    if (result.thought) {
+      game.log.push({ type: 'thought', player: playerIndex, playerName: player.name, message: result.thought });
+      onEvent({ type: 'thought', player: player.name, message: result.thought });
+    }
     if (result.message && result.message !== 'PASS') {
       game.log.push({
         type: 'discussion', round: game.round, room,
