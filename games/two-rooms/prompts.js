@@ -1,10 +1,121 @@
 /**
  * Two Rooms and a Boom - LLM Prompts
- * Concise prompts for ~40-50k tokens per game.
+ * Per-player conversational sessions with delta events.
  */
 
-import { askLLM } from '../../core/llm-client.js';
+import { askLLMSession } from '../../core/llm-client.js';
 import * as engine from './engine.js';
+
+// Track last-sent log index per player to only send delta
+const playerLogCursors = new Map();
+
+// Track which phase instructions have been sent per player per round
+const phaseSent = new Map();
+
+function isFirstCall(game, playerIndex, phase) {
+  const key = `${game.id}:${playerIndex}:${phase}:${game.round}`;
+  if (phaseSent.has(key)) return false;
+  phaseSent.set(key, true);
+  return true;
+}
+
+function getPlayerLogKey(gameId, playerIndex) {
+  return `${gameId}:${playerIndex}`;
+}
+
+export function resetPromptState(gameId) {
+  for (const key of playerLogCursors.keys()) {
+    if (key.startsWith(`${gameId}:`)) playerLogCursors.delete(key);
+  }
+  for (const key of phaseSent.keys()) {
+    if (key.startsWith(`${gameId}:`)) phaseSent.delete(key);
+  }
+}
+
+function getNewEvents(game, playerIndex) {
+  const key = getPlayerLogKey(game.id, playerIndex);
+  const cursor = playerLogCursors.get(key) || 0;
+  const player = game.players[playerIndex];
+
+  const newEvents = game.log.slice(cursor).filter(e => {
+    const isOwnEvent = e.player === playerIndex || e.from === playerIndex;
+
+    // Discussion: only in same room, skip own messages
+    if (e.type === 'discussion') {
+      return e.room === player.room && !isOwnEvent;
+    }
+
+    // Shares: player sees shares that involve them (as recipient) — they get verified info
+    // Skip own shares (as sender — you know what you shared)
+    if (e.type === 'share') {
+      if (e.to === playerIndex) return true; // You received a share (verified info)
+      if (e.from === playerIndex) return false; // You initiated this share
+      // Other shares in your room: you see that it happened (but not the content)
+      return game.players[e.from]?.room === player.room;
+    }
+
+    // Leader elected: visible to players in that room
+    if (e.type === 'leader_elected') return true; // Both rooms learn about leaders
+
+    // Hostage selected: visible to players in that room
+    if (e.type === 'hostage_selected') return true;
+
+    // Exchange: everyone sees who moved
+    if (e.type === 'exchange') return true;
+
+    // Private thoughts not shared
+    if (e.type === 'thought') return false;
+
+    // Game over: everyone
+    if (e.type === 'game_over') return true;
+
+    return true;
+  });
+
+  playerLogCursors.set(key, game.log.length);
+  return newEvents;
+}
+
+function formatNewEvents(events, playerIndex) {
+  const lines = [];
+  for (const e of events) {
+    switch (e.type) {
+      case 'discussion':
+        lines.push(`${e.playerName}: "${e.message}"`);
+        break;
+      case 'share':
+        if (e.to === playerIndex) {
+          // You received verified info
+          const shareInfo = e.shareType === 'card'
+            ? `showed you their card: ${e.fromTeam?.toUpperCase()} team (${e.fromLabel})`
+            : `showed you their color: ${e.fromTeam?.toUpperCase()} team`;
+          lines.push(`[VERIFIED] ${e.fromName} ${shareInfo}. This is guaranteed true.`);
+        } else {
+          // You saw someone else share (but don't know content)
+          lines.push(`${e.fromName} privately shared ${e.shareType === 'card' ? 'their card' : 'their color'} with ${e.toName}.`);
+        }
+        break;
+      case 'leader_elected':
+        lines.push(`${e.playerName} elected leader of Room ${e.room}.`);
+        break;
+      case 'hostage_selected':
+        lines.push(`Room ${e.room} sends hostage(s): ${e.hostages.join(', ')}.`);
+        break;
+      case 'exchange':
+        if (e.aToB.length || e.bToA.length) {
+          const parts = [];
+          if (e.aToB.length) parts.push(`${e.aToB.join(', ')} moved A→B`);
+          if (e.bToA.length) parts.push(`${e.bToA.join(', ')} moved B→A`);
+          lines.push(`Exchange: ${parts.join(', ')}.`);
+        }
+        break;
+      case 'game_over':
+        lines.push(`GAME OVER: ${e.winner.toUpperCase()} wins! ${e.reason}`);
+        break;
+    }
+  }
+  return lines.join('\n');
+}
 
 function getPlayerModel(game, playerIndex) {
   return game.players[playerIndex].model || game.model;
@@ -12,9 +123,7 @@ function getPlayerModel(game, playerIndex) {
 
 function buildSystemPrompt(game, playerIndex) {
   const player = game.players[playerIndex];
-  const roommates = engine.getPlayersInRoom(game, player.room)
-    .map(p => `  ${p.name} (#${p.index})`)
-    .join('\n');
+  const playerList = game.players.map((p, i) => `  ${p.name} (#${i})`).join('\n');
 
   let roleInfo = '';
   switch (player.role) {
@@ -35,58 +144,39 @@ function buildSystemPrompt(game, playerIndex) {
       }
   }
 
-  // Knowledge from shares
-  const knowledge = engine.getKnowledge(game, playerIndex);
-  const knownEntries = Object.values(knowledge);
-  const knowledgeStr = knownEntries.length > 0
-    ? `\n--- VERIFIED FACTS (from physical card shares, 100% guaranteed true) ---\n${knownEntries.map(k =>
-        k.role ? `  ${k.name} IS ${k.team.toUpperCase()} team (${k.label}) - THIS IS CERTAIN` : `  ${k.name} IS ${k.team.toUpperCase()} team - THIS IS CERTAIN`
-      ).join('\n')}\n--- Players may LIE verbally, but the above is proven truth. ---`
-    : '';
-
-  return `You are ${player.name} in Two Rooms and a Boom. Room ${player.room}, Round ${game.round}/${game.maxRounds}.
+  return `You are ${player.name} in Two Rooms and a Boom. ${game.maxRounds} rounds total.
 ${roleInfo}
-${knowledgeStr}
 
-Players in your room:
-${roommates}
+Players:
+${playerList}
 
-Rules: Be CONCISE. 1-2 sentences max. Verbal claims are never verifiable - players can claim any team or role when speaking. Only physically sharing a card is guaranteed truthful. You can share your card (reveal role) or share color (reveal team) with one player.`;
-}
-
-function buildContext(game, room) {
-  const events = game.log.filter(e =>
-    (e.type === 'discussion' && e.room === room) ||
-    (e.type === 'share' && game.players[e.from]?.room === room) ||
-    e.type === 'leader_elected' ||
-    e.type === 'exchange' ||
-    e.type === 'hostage_selected'
-  );
-
-  if (events.length === 0) return '(Start of game)';
-
-  return 'HISTORY:\n' + events.map(e => {
-    switch (e.type) {
-      case 'discussion': return `[R${e.round}] ${e.playerName}: "${e.message}"`;
-      case 'share': return `[R${e.round}] ${e.fromName} shared ${e.shareType} with ${e.toName}`;
-      case 'leader_elected': return `[R${e.round}] ${e.playerName} elected leader of Room ${e.room}`;
-      case 'exchange': return `[R${e.round}] Exchange: ${e.aToB.join(',')} went A->B, ${e.bToA.join(',')} went B->A`;
-      case 'hostage_selected': return `[R${e.round}] Room ${e.room} sends: ${e.hostages.join(', ')}`;
-      default: return null;
-    }
-  }).filter(Boolean).join('\n');
+Rules:
+- Each round: discussion in your room, then card sharing, then leader election, then hostage exchange.
+- Leaders pick who gets sent to the other room as hostage.
+- Verbal claims are NEVER verifiable: players can claim any team or role when speaking.
+- Only physically sharing a card is guaranteed truthful (the game enforces it).
+- You can share your COLOR (team only) or CARD (full role) with one player per round.
+- Room assignments, leader elections, shares, and exchanges are announced as events.
+- Be CONCISE (1-2 sentences). Only elaborate with real arguments.`;
 }
 
 function ask(game, playerIndex, userPrompt, parseResponse) {
+  const model = getPlayerModel(game, playerIndex);
   const systemPrompt = buildSystemPrompt(game, playerIndex);
-  const room = game.players[playerIndex].room;
-  const context = buildContext(game, room);
-  return askLLM({
+
+  const newEvents = getNewEvents(game, playerIndex);
+  const deltaContext = formatNewEvents(newEvents, playerIndex);
+  const fullPrompt = deltaContext
+    ? `${deltaContext}\n\n${userPrompt}`
+    : userPrompt;
+
+  return askLLMSession({
     gameId: game.id,
-    model: getPlayerModel(game, playerIndex),
+    model,
     systemPrompt,
-    userPrompt: `${context}\n\n${userPrompt}`,
+    userPrompt: fullPrompt,
     playerName: game.players[playerIndex].name,
+    playerKey: `player:${playerIndex}:${game.players[playerIndex].name}`,
     parseResponse,
   });
 }
@@ -95,22 +185,22 @@ function ask(game, playerIndex, userPrompt, parseResponse) {
 
 export function getRoomDiscussion(game, playerIndex, turn = 0) {
   const room = game.players[playerIndex].room;
-  const roundMsgs = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round && e.room === room)
-    .map(e => `${e.playerName}: "${e.message}"`)
-    .join('\n');
-
   const discussionTurns = Math.max(1, 4 - game.round);
   const roommates = engine.getPlayersInRoom(game, room)
     .filter(p => p.index !== playerIndex)
     .map(p => `${p.name} (#${p.index})`).join(', ');
 
-  return ask(game, playerIndex,
-    `DISCUSSION (Room ${room}, Round ${game.round}/${game.maxRounds}, turn ${turn + 1}/${discussionTurns}).${roundMsgs ? `\n\nSaid this round so far:\n${roundMsgs}` : ''}
+  const first = isFirstCall(game, playerIndex, 'discussion');
+
+  const prompt = first
+    ? `DISCUSSION (Room ${room}, Round ${game.round}/${game.maxRounds}, turn ${turn + 1}/${discussionTurns}).
 
 Other players here: ${roommates}
 
-Reply with MESSAGE: your statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`,
+Reply with MESSAGE: your statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
+    : `Your turn to speak (Room ${room}, turn ${turn + 1}/${discussionTurns}).\nMESSAGE: your statement or PASS`;
+
+  return ask(game, playerIndex, prompt,
     (text) => {
       const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
       const message = messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : text.trim();
@@ -131,16 +221,21 @@ export function getCardShare(game, playerIndex) {
   const knowledge = engine.getKnowledge(game, playerIndex);
   const knownNames = Object.values(knowledge).map(k => k.name);
 
-  return ask(game, playerIndex,
-    `CARD SHARING (Room ${room}, Round ${game.round}/${game.maxRounds}).
+  const first = isFirstCall(game, playerIndex, 'card_share');
+
+  const prompt = first
+    ? `CARD SHARING (Room ${room}, Round ${game.round}/${game.maxRounds}).
 You may privately show your card to ONE player in your room. This is verified by the game: you cannot lie when sharing a card. The target will learn your true team (color share) or full role (card share).
 
 Players here: ${roommates}
-${knownNames.length ? `You already know: ${knownNames.join(', ')}` : 'You haven\'t verified anyone yet.'}
+${knownNames.length ? `You already verified: ${knownNames.join(', ')}` : 'You haven\'t verified anyone yet.'}
 
 SHARE: yes/no
 TARGET: player number (if yes)
-SHARE_TYPE: color/card`,
+SHARE_TYPE: color/card`
+    : `Card sharing phase. Players here: ${roommates}\nSHARE: yes/no\nTARGET: player number\nSHARE_TYPE: color/card`;
+
+  return ask(game, playerIndex, prompt,
     (text) => {
       const shareMatch = text.match(/SHARE:\s*(yes|no)/i);
       if (!shareMatch || shareMatch[1].toLowerCase() === 'no') return { share: false };
@@ -198,7 +293,6 @@ export function getHostagePick(game, leaderIndex) {
           if (picks.length >= hostageCount) break;
         }
       }
-      // Fill with random if needed
       while (picks.length < hostageCount) {
         const remaining = eligibleIndices.filter(i => !picks.includes(i));
         if (remaining.length === 0) break;

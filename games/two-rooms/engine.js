@@ -103,6 +103,8 @@ export function addShare(game, fromIndex, toIndex, type) {
     to: toIndex,
     toName: game.players[toIndex].name,
     shareType: type,
+    fromTeam: game.players[fromIndex].team,
+    fromLabel: game.players[fromIndex].label,
   });
 }
 

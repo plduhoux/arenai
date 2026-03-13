@@ -1,14 +1,37 @@
 /**
  * Secret Hitler - LLM Prompts
- * All prompt templates and LLM interactions specific to this game.
+ * Per-player conversational sessions with delta events.
  */
 
-import { askLLM } from '../../core/llm-client.js';
+import { askLLMSession } from '../../core/llm-client.js';
 
 const PLAYER_COLORS = ['R', 'B', 'G', 'Y', 'P', 'O', 'W', 'Br', 'Pk', 'Gr'];
 
-// How many recent rounds get full detail
-const FULL_DETAIL_ROUNDS = 3;
+// Track last-sent log index per player to only send delta
+const playerLogCursors = new Map();
+
+// Track which phase instructions have been sent per player per round
+const phaseSent = new Map();
+
+function isFirstCall(game, playerIndex, phase) {
+  const key = `${game.id}:${playerIndex}:${phase}:${game.round}`;
+  if (phaseSent.has(key)) return false;
+  phaseSent.set(key, true);
+  return true;
+}
+
+function getPlayerLogKey(gameId, playerIndex) {
+  return `${gameId}:${playerIndex}`;
+}
+
+export function resetPromptState(gameId) {
+  for (const key of playerLogCursors.keys()) {
+    if (key.startsWith(`${gameId}:`)) playerLogCursors.delete(key);
+  }
+  for (const key of phaseSent.keys()) {
+    if (key.startsWith(`${gameId}:`)) phaseSent.delete(key);
+  }
+}
 
 function t(game) { return game.terms; }
 
@@ -16,24 +39,122 @@ function getPlayerModel(game, playerIndex) {
   return game.players[playerIndex].model || game.model;
 }
 
+function getNewEvents(game, playerIndex) {
+  const key = getPlayerLogKey(game.id, playerIndex);
+  const cursor = playerLogCursors.get(key) || 0;
+  const player = game.players[playerIndex];
+
+  const newEvents = game.log.slice(cursor).filter(e => {
+    // Determine if this is the player's own action
+    const isOwnEvent = e.player === playerIndex || e.president === playerIndex;
+
+    // Discussion: skip own messages
+    if (e.type === 'discussion') return e.player !== playerIndex;
+    // Votes: skip own vote
+    if (e.type === 'vote') return e.player !== playerIndex;
+    // Nomination: skip if you're the president (you made it)
+    if (e.type === 'nomination') return e.president !== playerIndex;
+    // Investigation result: visible ONLY to the investigating president
+    if (e.type === 'power_investigate_result') return e.player === playerIndex;
+    // Investigation claim (public): everyone sees it (president already knows from result event)
+    if (e.type === 'power_investigate') return e.president !== playerIndex;
+    // Peek result: only visible to the president who peeked
+    if (e.type === 'power_peek') return e.player === playerIndex;
+    // Kill: skip if you're the president who ordered it
+    if (e.type === 'power_kill') return e.president !== playerIndex;
+    // Special election: everyone sees
+    if (e.type === 'power_special_election') return true;
+    // Legislative session: private events (players involved already see cards in their prompts)
+    if (e.type === 'president_discard') return false;
+    if (e.type === 'chancellor_play') return false;
+    // Veto events: everyone sees the outcome
+    if (e.type === 'veto_proposed') return true;
+    if (e.type === 'veto_accepted' || e.type === 'veto_rejected') return true;
+    // Private thoughts not shared
+    if (e.type === 'thought') return false;
+    // Policy enacted, election result, etc.: everyone sees
+    return true;
+  });
+
+  playerLogCursors.set(key, game.log.length);
+  return newEvents;
+}
+
+function formatNewEvents(events, game) {
+  const terms = t(game);
+  const lines = [];
+  for (const e of events) {
+    switch (e.type) {
+      case 'nomination':
+        lines.push(`${e.presidentName} nominated ${e.chancellorName} as Chancellor.`);
+        break;
+      case 'vote':
+        lines.push(`${e.playerName} voted ${e.vote.toUpperCase()}.`);
+        break;
+      case 'election_result':
+        lines.push(`Vote result: ${e.ja} Ja / ${e.nein} Nein - ${e.passed ? 'PASSED' : 'FAILED'}.`);
+        break;
+      case 'policy_enacted':
+        lines.push(`${e.chaos ? 'CHAOS: ' : ''}${e.policy.toUpperCase()} policy enacted. (${terms.liberal}: ${e.liberalTotal}, ${terms.fascist}: ${e.fascistTotal})`);
+        break;
+      case 'discussion':
+        lines.push(`${e.playerName}: "${e.message}"`);
+        break;
+      case 'power_kill':
+        lines.push(`President executed ${e.targetName}!${e.wasHitler ? ` IT WAS THE ${terms.hitler.toUpperCase()}!` : ''}`);
+        break;
+      case 'power_investigate':
+        lines.push(`President investigated ${e.targetName}. Claimed: ${e.claim || 'unknown'}.`);
+        break;
+      case 'power_investigate_result':
+        lines.push(`[INVESTIGATION] You investigated ${e.targetName}: they are ${e.actualParty.toUpperCase()}.`);
+        break;
+      case 'power_peek':
+        lines.push(`[PEEK] Top 3 cards in the policy deck: ${e.cards.map(c => c.toUpperCase()).join(', ')}.`);
+        break;
+      case 'power_special_election':
+        lines.push(`Special election! ${e.newPresidentName} is the new President.`);
+        break;
+      case 'president_discard':
+        // Private event for the president (they already know). Public claim is separate.
+        // If this reaches formatNewEvents, it's for the chancellor who sees remaining cards.
+        break;
+      case 'chancellor_play':
+        // The chancellor already knows what they played. This is logged for history.
+        break;
+      case 'veto_proposed':
+        lines.push(`Chancellor proposed a VETO.`);
+        break;
+      case 'veto_accepted':
+        lines.push(`President ACCEPTED the veto. Both cards discarded.`);
+        break;
+      case 'veto_rejected':
+        lines.push(`President REJECTED the veto. Chancellor must play a card.`);
+        break;
+      case 'player_killed':
+        lines.push(`${e.playerName} has been executed.${e.wasHitler ? ` They were the ${terms.hitler}!` : ''}`);
+        break;
+    }
+  }
+  return lines.join('\n');
+}
+
 function buildSystemPrompt(game, playerIndex) {
   const player = game.players[playerIndex];
   const terms = t(game);
-  const alivePlayers = game.players
-    .map((p, i) => p.alive ? `  [${PLAYER_COLORS[i]}] ${p.name} (#${i})` : `  [X] ${p.name} (#${i}) [DEAD]`)
-    .join('\n');
+  const playerList = game.players.map((p, i) => `  [${PLAYER_COLORS[i]}] ${p.name} (#${i})`).join('\n');
 
   let roleInfo = '';
   if (player.role === 'liberal') {
     roleInfo = `You are a ${terms.liberal}. You don't know anyone else's role. Your goal is to enact ${game.winPolicies?.liberal || 5} ${terms.liberal} policies or find and kill the ${terms.hitler}.`;
   } else if (player.role === 'fascist') {
-    // Fascists know each other AND know who Hitler is
     const teammates = game.players
       .filter((p, i) => i !== playerIndex && p.party === 'fascist')
       .map(p => `${p.name} (${p.role === 'hitler' ? terms.hitler : terms.fascist})`)
       .join(', ');
     roleInfo = `You are a ${terms.fascist}. Your teammates: ${teammates}. Your goal is to enact ${game.winPolicies?.fascist || 6} ${terms.fascist} policies or get the ${terms.hitler} elected Chancellor after 3 ${terms.fascist} policies are enacted. Help the ${terms.hitler} but don't be obvious about it. Lie, deceive, and manipulate.`;
   } else {
+    // Hitler
     if (game.players.length <= 6) {
       const fascist = game.players.find((p, i) => i !== playerIndex && p.role === 'fascist');
       roleInfo = `You are the ${terms.hitler}. Your ${terms.fascist} teammate is ${fascist.name}. Your goal: stay hidden, appear ${terms.liberal.toLowerCase()}, and get elected Chancellor after 3 ${terms.fascist} policies. You win if ${terms.fascist.toLowerCase()}s enact 6 policies too. Be careful: if you get killed, your team loses.`;
@@ -58,106 +179,32 @@ YOUR ROLE:
 ${roleInfo}
 
 PLAYERS:
-${alivePlayers}
+${playerList}
 
 CRITICAL RULES:
 - Be strategic and stay in character.
-- Be CONCISE. Short is better. If you have nothing interesting to say, say very little or pass.
-- Only elaborate when you have a real argument, accusation, or defense to make.
-- 1 sentence is fine. 2-3 max if you have something important.
-- When lying, be convincing. When accusing, have reasons.`;
+- Be CONCISE. 1-2 sentences max if you have something important.
+- When lying, be convincing. When accusing, have reasons.
+- Deaths, policies, and powers are announced as events during the game.`;
 }
 
-function buildGameContext(game) {
-  const terms = t(game);
-  const winLib = game.winPolicies?.liberal || 5;
-  const winFas = game.winPolicies?.fascist || 6;
-  const policies = `${terms.liberal} policies: ${game.liberalPolicies}/${winLib} | ${terms.fascist} policies: ${game.fascistPolicies}/${winFas}`;
-  const tracker = `Election tracker: ${game.electionTracker}/3`;
-
-  const roundMap = new Map();
-  for (const e of game.log) {
-    if (!e.round) continue;
-    if (!roundMap.has(e.round)) roundMap.set(e.round, []);
-    roundMap.get(e.round).push(e);
-  }
-
-  const rounds = [...roundMap.keys()].sort((a, b) => a - b);
-  const cutoff = game.round - FULL_DETAIL_ROUNDS;
-  const lines = [];
-
-  for (const r of rounds) {
-    const events = roundMap.get(r);
-    if (r <= cutoff) {
-      lines.push(summarizeRound(r, events, terms));
-    } else {
-      for (const e of events) {
-        const line = formatEvent(e, terms);
-        if (line) lines.push(line);
-      }
-    }
-  }
-
-  return `CURRENT STATE:\n${policies}\n${tracker}\nRound: ${game.round}\n\nGAME HISTORY:\n${lines.join('\n') || '(Game just started)'}`;
-}
-
-function summarizeRound(round, events, terms) {
-  const nom = events.find(e => e.type === 'nomination');
-  const vote = events.find(e => e.type === 'election_result');
-  const policy = events.find(e => e.type === 'policy_enacted');
-  const kill = events.find(e => e.type === 'power_kill');
-  const investigate = events.find(e => e.type === 'power_investigate');
-  const special = events.find(e => e.type === 'power_special_election');
-
-  // No discussions in summaries - only votes, policies, and powers
-  let summary = `[R${round}] `;
-  if (nom) summary += `${nom.presidentName}->${nom.chancellorName} `;
-
-  const votes = events.filter(e => e.type === 'vote');
-  if (votes.length > 0) {
-    const jaVoters = votes.filter(v => v.vote === 'ja').map(v => v.playerName);
-    const neinVoters = votes.filter(v => v.vote === 'nein').map(v => v.playerName);
-    if (vote) {
-      summary += vote.passed ? 'PASS' : 'FAIL';
-      summary += ` (Ja:${jaVoters.join(',')}|Nein:${neinVoters.join(',')}) `;
-    }
-  }
-
-  if (policy) {
-    summary += `${policy.chaos ? 'CHAOS ' : ''}${policy.policy.toUpperCase()} enacted. `;
-  }
-
-  if (kill) summary += `Killed ${kill.targetName}${kill.wasHitler ? ` (${terms.hitler}!)` : ''}. `;
-  if (investigate) summary += `Investigated ${investigate.targetName}, claimed ${investigate.claim || '?'}. `;
-  if (special) summary += `Special election: ${special.newPresidentName}. `;
-
-  return summary;
-}
-
-function formatEvent(e, terms) {
-  switch (e.type) {
-    case 'nomination': return `[Round ${e.round}] ${e.presidentName} nominated ${e.chancellorName} as Chancellor.`;
-    case 'election_result': return `[Round ${e.round}] Vote: ${e.ja} Ja / ${e.nein} Nein - ${e.passed ? 'PASSED' : 'FAILED'}`;
-    case 'vote': return `[Round ${e.round}] ${e.playerName} voted ${e.vote.toUpperCase()}`;
-    case 'policy_enacted': return `[Round ${e.round}] ${e.chaos ? 'CHAOS: ' : ''}${e.policy.toUpperCase()} policy enacted. (${terms.liberal}: ${e.liberalTotal}/5, ${terms.fascist}: ${e.fascistTotal}/6)`;
-    case 'discussion': return `[Round ${e.round}] ${e.playerName}: "${e.message}"`;
-    case 'power_kill': return `[Round ${e.round}] President executed ${e.targetName}!${e.wasHitler ? ` IT WAS THE ${terms.hitler.toUpperCase()}!` : ''}`;
-    case 'power_investigate': return `[Round ${e.round}] President investigated ${e.targetName}. Claimed: ${e.claim || 'unknown'}`;
-    case 'power_special_election': return `[Round ${e.round}] Special election! ${e.newPresidentName} is the new President.`;
-    default: return null;
-  }
-}
-
-// Helper to call LLM for a specific player
 function ask(game, playerIndex, userPrompt, parseResponse) {
+  const model = getPlayerModel(game, playerIndex);
   const systemPrompt = buildSystemPrompt(game, playerIndex);
-  const context = buildGameContext(game);
-  return askLLM({
+
+  const newEvents = getNewEvents(game, playerIndex);
+  const deltaContext = formatNewEvents(newEvents, game);
+  const fullPrompt = deltaContext
+    ? `${deltaContext}\n\n${userPrompt}`
+    : userPrompt;
+
+  return askLLMSession({
     gameId: game.id,
-    model: getPlayerModel(game, playerIndex),
+    model,
     systemPrompt,
-    userPrompt: `${context}\n\n${userPrompt}`,
+    userPrompt: fullPrompt,
     playerName: game.players[playerIndex].name,
+    playerKey: `player:${playerIndex}:${game.players[playerIndex].name}`,
     parseResponse,
   });
 }
@@ -198,11 +245,7 @@ export function getDiscussionWithStance(game, playerIndex) {
   const president = game.players[game.presidentIndex].name;
   const chancellor = game.players[game.currentChancellorCandidate].name;
 
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `[${e.playerName}]: "${e.message}"`)
-    .join('\n');
-
+  const first = isFirstCall(game, playerIndex, 'discussion');
   const withThoughts = game.enableThoughts;
 
   const thoughtInstructions = withThoughts
@@ -219,8 +262,8 @@ MESSAGE: your statement (1-2 sentences, skip if PASS)`
 STANCE: attack/defense/analysis/pass
 MESSAGE: your statement (1-2 sentences, skip if PASS)`;
 
-  return ask(game, playerIndex,
-    `${president} has nominated ${chancellor} as Chancellor.${roundDiscussion ? `\n\nDiscussion so far:\n${roundDiscussion}` : ''}
+  const prompt = first
+    ? `${president} has nominated ${chancellor} as Chancellor.
 ${thoughtInstructions}
 Choose a STANCE and speak (or PASS if nothing to add):
 - ATTACK: accuse someone specific
@@ -228,7 +271,12 @@ Choose a STANCE and speak (or PASS if nothing to add):
 - ANALYSIS: observations
 - PASS: stay silent
 
-${format}`,
+${format}`
+    : `Your turn to speak on the ${president}/${chancellor} government.${withThoughts ? '\nTHOUGHT: your reasoning' : ''}
+STANCE: attack/defense/analysis/pass
+MESSAGE: your statement`;
+
+  return ask(game, playerIndex, prompt,
     (text) => {
       const thoughtMatch = withThoughts ? text.match(/THOUGHT:\s*(.+?)(?=\nSTANCE:)/is) : null;
       const stanceMatch = text.match(/STANCE:\s*(attack|defense|analysis|pass)/i);
@@ -237,7 +285,10 @@ ${format}`,
       const stance = stanceMatch ? stanceMatch[1].toLowerCase() : 'analysis';
       const thought = thoughtMatch ? thoughtMatch[1].trim() : '';
       const message = stance === 'pass' ? 'PASS' :
-        (messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : 'PASS');
+        (messageMatch ? messageMatch[1]
+          .replace(/THOUGHT:\s*.+/is, '')
+          .replace(/^["']|["']$/g, '')
+          .trim() : 'PASS');
 
       return { stance, message, thought };
     },
@@ -247,21 +298,17 @@ ${format}`,
 export function getRebuttal(game, playerIndex) {
   const playerName = game.players[playerIndex].name;
 
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `[${e.playerName}]: "${e.message}"`)
-    .join('\n');
-
-  if (!roundDiscussion) return Promise.resolve({ message: 'PASS', thought: '' });
-
-  const mentioned = roundDiscussion.toLowerCase().includes(playerName.toLowerCase());
-
+  // Check if mentioned in recent discussion events (from delta, not full log)
+  // Since we use sessions, just ask if they want to respond
   return ask(game, playerIndex,
-    `The discussion this round:\n${roundDiscussion}\n\n${mentioned ? `Your name was mentioned. Respond briefly or PASS.` : `Respond if useful, otherwise PASS.`}
-
-Reply with your response (1 sentence) or PASS.`,
+    `Your name was mentioned. Respond briefly (1 sentence) or PASS.`,
     (text) => {
-      const clean = text.replace(/^["']|["']$/g, '').replace(/^MESSAGE:\s*/i, '').trim();
+      const clean = text
+        .replace(/THOUGHT:\s*.+?(?=\n(?:STANCE|MESSAGE)|$)/is, '')
+        .replace(/STANCE:\s*\w+\s*/i, '')
+        .replace(/^["']|["']$/g, '')
+        .replace(/^MESSAGE:\s*/i, '')
+        .trim();
       const message = clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
       return { message, thought: '' };
     },
@@ -272,19 +319,18 @@ export function getVote(game, playerIndex) {
   const president = game.players[game.presidentIndex].name;
   const chancellor = game.players[game.currentChancellorCandidate].name;
 
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `${e.playerName}: "${e.message}"`)
-    .join('\n');
+  const first = isFirstCall(game, playerIndex, 'vote');
 
-  return ask(game, playerIndex,
-    `Time to vote on the government: President ${president} + Chancellor ${chancellor}.
-${roundDiscussion ? `\nDiscussion:\n${roundDiscussion}\n` : ''}
+  const prompt = first
+    ? `Time to vote on the government: President ${president} + Chancellor ${chancellor}.
 Vote JA (yes) or NEIN (no). Consider your role and strategy.
 
 Reply in this exact format:
 VOTE: JA (or NEIN)
-REASON: your brief reasoning`,
+REASON: your brief reasoning`
+    : `Vote on ${president}/${chancellor}. VOTE: JA or NEIN\nREASON: brief`;
+
+  return ask(game, playerIndex, prompt,
     (text) => {
       const voteMatch = text.match(/VOTE:\s*(JA|NEIN)/i);
       const reasonMatch = text.match(/REASON:\s*(.+)/is);

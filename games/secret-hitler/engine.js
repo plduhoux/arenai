@@ -387,13 +387,22 @@ export function executePower(game, targetIndex, result) {
     case 'investigate': {
       const target = game.players[targetIndex];
       target.investigated = true;
+      // Private result: only the president sees the actual party
+      game.log.push({
+        type: 'power_investigate_result',
+        round: game.round,
+        player: game.presidentIndex,
+        target: targetIndex,
+        targetName: target.name,
+        actualParty: target.party,
+      });
+      // Public claim: everyone sees what the president claims
       game.log.push({
         type: 'power_investigate',
         round: game.round,
         president: game.presidentIndex,
         target: targetIndex,
         targetName: target.name,
-        actualParty: target.party,
         claim: result?.claim, // what president SAYS the result was
       });
       break;
@@ -404,6 +413,7 @@ export function executePower(game, targetIndex, result) {
       game.log.push({
         type: 'power_peek',
         round: game.round,
+        player: game.presidentIndex,
         president: game.presidentIndex,
         cards: top3,
       });
