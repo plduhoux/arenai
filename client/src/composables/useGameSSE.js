@@ -12,6 +12,9 @@ export function useGameSSE() {
     fascistTarget: 6,
     tokensInput: 0,
     tokensOutput: 0,
+    tokensCacheRead: 0,
+    tokensCacheWrite: 0,
+    tokensTotalSent: 0,
     apiCalls: 0,
     winner: null,
     winReason: null,
@@ -44,6 +47,10 @@ export function useGameSSE() {
     if (event.roomBCount !== undefined) state.value.roomBCount = event.roomBCount
     if (event.tokensInput !== undefined) state.value.tokensInput = event.tokensInput
     if (event.tokensOutput !== undefined) state.value.tokensOutput = event.tokensOutput
+    if (event.tokensCacheRead !== undefined) state.value.tokensCacheRead = event.tokensCacheRead
+    if (event.tokensCacheWrite !== undefined) state.value.tokensCacheWrite = event.tokensCacheWrite
+    if (event.tokensTotalSent !== undefined) state.value.tokensTotalSent = event.tokensTotalSent
+    else if (event.tokensInput !== undefined) state.value.tokensTotalSent = (event.tokensInput || 0) + (event.tokensCacheRead || 0) + (event.tokensCacheWrite || 0)
     if (event.apiCalls !== undefined) state.value.apiCalls = event.apiCalls
     if (event.players) state.value.players = event.players
   }
@@ -116,6 +123,9 @@ export function useGameSSE() {
         state.value.round = data.rounds
         if (data.tokensInput) state.value.tokensInput = data.tokensInput
         if (data.tokensOutput) state.value.tokensOutput = data.tokensOutput
+        if (data.tokensCacheRead) state.value.tokensCacheRead = data.tokensCacheRead
+        if (data.tokensCacheWrite) state.value.tokensCacheWrite = data.tokensCacheWrite
+        if (data.tokensTotalSent) state.value.tokensTotalSent = data.tokensTotalSent
         if (data.apiCalls) state.value.apiCalls = data.apiCalls
       } catch {}
       disconnect()

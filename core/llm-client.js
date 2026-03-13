@@ -5,6 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { getSession, addUserMessage, addAssistantMessage, trackSessionTokens } from './session-manager.js';
 
 // --- Fatal errors (no retry, stop game immediately) ---
 
@@ -118,9 +119,17 @@ export function clearTokenUsage(gameId) {
 }
 
 function trackTokens(gameId, usage) {
-  const current = gameTokens.get(gameId) || { input: 0, output: 0, calls: 0 };
-  current.input += usage.input_tokens || usage.prompt_tokens || 0;
+  const current = gameTokens.get(gameId) || { input: 0, output: 0, calls: 0, cacheRead: 0, cacheWrite: 0, totalSent: 0 };
+  const inputTokens = usage.input_tokens || usage.prompt_tokens || 0;
+  // Anthropic: cache_read_input_tokens / cache_creation_input_tokens
+  // OpenAI: prompt_tokens_details.cached_tokens (no write cost)
+  const cacheRead = usage.cache_read_input_tokens || usage.prompt_tokens_details?.cached_tokens || 0;
+  const cacheWrite = usage.cache_creation_input_tokens || 0;
+  current.input += inputTokens;
   current.output += usage.output_tokens || usage.completion_tokens || 0;
+  current.cacheRead += cacheRead;
+  current.cacheWrite += cacheWrite;
+  current.totalSent += inputTokens + cacheRead + cacheWrite;
   current.calls += 1;
   gameTokens.set(gameId, current);
 }
@@ -142,6 +151,69 @@ async function callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playe
   return {
     text: response.content[0].text.trim(),
     usage: response.usage,
+  };
+}
+
+// --- Anthropic session call (multi-turn) ---
+
+async function callAnthropicSession({ model, systemPrompt, messages, maxTokens, playerName }) {
+  const apiKey = getApiKey('anthropic');
+  if (!apiKey) throw new FatalLLMError('No Anthropic API key configured. Add one in Settings.');
+  const client = getAnthropicClient(apiKey);
+
+  // Use top-level automatic caching (Anthropic's recommended approach for multi-turn).
+  // The system auto-places a cache breakpoint on the last cacheable block.
+  // On next call, everything before it is read from cache.
+  // Min threshold: 1024 tokens (Sonnet/Opus), 2048 tokens (Haiku).
+  // Top-level automatic caching: Anthropic places the cache breakpoint on the last cacheable block.
+  // Cache activates once total content exceeds threshold (2048 tokens for Sonnet 4.6, 1024 for Opus).
+  const response = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    cache_control: { type: 'ephemeral' },
+    system: [{ type: 'text', text: systemPrompt }],
+    messages,
+  });
+
+  return {
+    text: response.content[0].text.trim(),
+    usage: response.usage,
+  };
+}
+
+// --- OpenAI-compatible session call (multi-turn) ---
+
+async function callOpenAISession({ provider, model, systemPrompt, messages, maxTokens }) {
+  const apiKey = getApiKey(provider);
+  if (!apiKey) throw new FatalLLMError(`No ${provider} API key configured. Add one in Settings.`);
+  const baseUrl = getBaseUrl(provider);
+  const tokenParam = provider === 'openai' ? 'max_completion_tokens' : 'max_tokens';
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      [tokenParam]: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`${provider} API error (${response.status}): ${err.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  return {
+    text: data.choices[0].message.content.trim(),
+    usage: data.usage || { prompt_tokens: 0, completion_tokens: 0 },
   };
 }
 
@@ -183,7 +255,68 @@ async function callOpenAICompatible({ provider, model, systemPrompt, userPrompt,
   };
 }
 
-// --- Main entry point ---
+// --- Session-based entry point ---
+
+/**
+ * Ask an LLM using a persistent per-player session.
+ * The system prompt is sent once; subsequent calls append to the conversation.
+ */
+export async function askLLMSession({
+  gameId,
+  model,
+  systemPrompt,
+  userPrompt,
+  playerName = 'Player',
+  playerKey,
+  parseResponse = (text) => text,
+  retries = 2,
+  maxTokens = 300,
+}) {
+  const provider = getProviderForModel(model);
+  const session = getSession(gameId, playerKey || playerName, systemPrompt);
+
+  // Append user message to session
+  const messages = addUserMessage(session, userPrompt);
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      console.log(`[${playerName}] calling ${model} session (${messages.length} msgs, attempt ${attempt})...`);
+
+      let result;
+      if (provider === 'anthropic') {
+        result = await callAnthropicSession({ model, systemPrompt: session.systemPrompt, messages, maxTokens, playerName });
+      } else {
+        result = await callOpenAISession({ provider, model, systemPrompt: session.systemPrompt, messages, maxTokens });
+      }
+
+      // Record assistant response and tokens in session
+      addAssistantMessage(session, result.text);
+      trackSessionTokens(session, result.usage);
+
+      trackTokens(gameId, result.usage);
+      const cached = result.usage.cache_read_input_tokens || result.usage.prompt_tokens_details?.cached_tokens || 0;
+      const cacheCreated = result.usage.cache_creation_input_tokens || 0;
+      const uncached = result.usage.input_tokens || result.usage.prompt_tokens || 0;
+      console.log(`[${playerName}] OK (in:${uncached} out:${result.usage.output_tokens || result.usage.completion_tokens || '?'} cache_read:${cached} cache_write:${cacheCreated})`);
+      if (process.env.DEBUG_LLM) console.log(`[${playerName}] RAW: ${result.text.slice(0, 200)}`);
+      return parseResponse(result.text);
+    } catch (err) {
+      if (isFatalError(err)) {
+        console.error(`FATAL LLM error for ${playerName}: ${err.message}`);
+        throw new FatalLLMError(err.message);
+      }
+      if (attempt === retries) {
+        // Remove the failed user message so session stays clean
+        session.messages.pop();
+        console.error(`LLM error for ${playerName}:`, err.message);
+        throw err;
+      }
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+// --- Legacy one-shot entry point ---
 
 /**
  * Ask an LLM a question in the context of a game.

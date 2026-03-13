@@ -52,7 +52,8 @@
       </template>
       <div class="status-item">
         <span class="status-label">Tokens</span>
-        <span class="status-value">{{ formatTokens(state.tokensInput) }} / {{ formatTokens(state.tokensOutput) }}</span>
+        <span class="status-value">{{ formatTokens(effectiveInput) }} / {{ formatTokens(state.tokensOutput) }}</span>
+        <span v-if="cacheSavings > 0" class="status-sub">{{ cacheSavings }}% saved by cache</span>
       </div>
       <div class="status-item">
         <span class="status-label">API Calls</span>
@@ -83,6 +84,30 @@ import { formatTokens, shortModel } from '../utils/format'
 
 const props = defineProps({
   state: { type: Object, required: true },
+})
+
+const totalSent = computed(() => {
+  const s = props.state
+  return (s.tokensInput || 0) + (s.tokensCacheRead || 0) + (s.tokensCacheWrite || 0)
+})
+
+// Effective input = full-price tokens + cache reads at 10% + cache writes at 125%
+const effectiveInput = computed(() => {
+  const s = props.state
+  const fullPrice = s.tokensInput || 0
+  const cacheRead = s.tokensCacheRead || 0
+  const cacheWrite = s.tokensCacheWrite || 0
+  return Math.round(fullPrice + cacheRead * 0.1 + cacheWrite * 1.25)
+})
+
+// How much we saved vs sending everything at full price
+const cacheSavings = computed(() => {
+  const s = props.state
+  const totalSent = s.tokensTotalSent || (s.tokensInput + (s.tokensCacheRead || 0) + (s.tokensCacheWrite || 0))
+  if (totalSent === 0) return 0
+  const effective = effectiveInput.value
+  const savings = Math.round((1 - effective / totalSent) * 100)
+  return savings > 0 ? savings : 0
 })
 
 const statusText = computed(() => {

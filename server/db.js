@@ -92,6 +92,17 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
     CREATE INDEX IF NOT EXISTS idx_games_winner ON games(winner);
   `);
+
+  // Migrations: add cache token columns
+  const cols = db.prepare("PRAGMA table_info(games)").all().map(c => c.name);
+  if (!cols.includes('tokens_cache_read')) {
+    db.exec(`
+      ALTER TABLE games ADD COLUMN tokens_cache_read INTEGER DEFAULT 0;
+      ALTER TABLE games ADD COLUMN tokens_cache_write INTEGER DEFAULT 0;
+      ALTER TABLE games ADD COLUMN tokens_total_sent INTEGER DEFAULT 0;
+      ALTER TABLE games ADD COLUMN session_stats JSON;
+    `);
+  }
 }
 
 function seedDefaults() {
@@ -180,9 +191,11 @@ export function saveGame(game) {
   const upsert = db.prepare(`
     INSERT INTO games (id, game_type, model, model_good, model_evil, player_count, rounds, winner, win_reason, players, terms,
                        policies_liberal, policies_fascist, tokens_input, tokens_output, api_calls,
+                       tokens_cache_read, tokens_cache_write, tokens_total_sent, session_stats,
                        status, created_at, finished_at)
     VALUES (@id, @gameType, @model, @modelGood, @modelEvil, @playerCount, @rounds, @winner, @winReason, @players, @terms,
             @liberal, @fascist, @tokensIn, @tokensOut, @apiCalls,
+            @tokensCacheRead, @tokensCacheWrite, @tokensTotalSent, @sessionStats,
             @status, @createdAt, @finishedAt)
     ON CONFLICT(id) DO UPDATE SET
       rounds = @rounds, winner = @winner, win_reason = @winReason,
@@ -190,6 +203,8 @@ export function saveGame(game) {
       model_good = @modelGood, model_evil = @modelEvil,
       policies_liberal = @liberal, policies_fascist = @fascist,
       tokens_input = @tokensIn, tokens_output = @tokensOut, api_calls = @apiCalls,
+      tokens_cache_read = @tokensCacheRead, tokens_cache_write = @tokensCacheWrite,
+      tokens_total_sent = @tokensTotalSent, session_stats = @sessionStats,
       status = @status, finished_at = @finishedAt
   `);
 
@@ -214,6 +229,10 @@ export function saveGame(game) {
     tokensIn: game.tokenUsage?.input || 0,
     tokensOut: game.tokenUsage?.output || 0,
     apiCalls: game.tokenUsage?.calls || 0,
+    tokensCacheRead: game.tokenUsage?.cacheRead || 0,
+    tokensCacheWrite: game.tokenUsage?.cacheWrite || 0,
+    tokensTotalSent: game.tokenUsage?.totalSent || 0,
+    sessionStats: game.sessionStats ? JSON.stringify(game.sessionStats) : null,
     liberal: game.liberalPolicies,
     fascist: game.fascistPolicies,
     status: game.phase === 'done' ? 'finished' : 'running',
@@ -244,6 +263,7 @@ export function listGames(limit = 50, offset = 0) {
     SELECT id, model, game_type, player_count, rounds, winner, win_reason,
            players, policies_liberal, policies_fascist, status,
            tokens_input, tokens_output, api_calls,
+           tokens_cache_read, tokens_cache_write, tokens_total_sent,
            created_at, finished_at
     FROM games ORDER BY created_at DESC LIMIT ? OFFSET ?
   `).all(limit, offset).map(row => ({
@@ -257,6 +277,7 @@ export function getGame(id) {
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(id);
   if (!game) return null;
   game.players = JSON.parse(game.players);
+  if (game.session_stats) game.session_stats = JSON.parse(game.session_stats);
   return game;
 }
 

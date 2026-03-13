@@ -1,7 +1,7 @@
 # ADR-001: Per-Player Conversational Sessions
 
 **Date**: 2026-03-13
-**Status**: Accepted, implementation planned
+**Status**: Implemented (2026-03-13)
 **Authors**: Polo + Michel
 
 ## Context

@@ -11,6 +11,7 @@ import { dirname, join } from 'path';
 import * as db from './db.js';
 import { runGame, pauseGame, resumeGame, stopGame, listRunningGames } from '../core/game-runner.js';
 import { getTokenUsage, setKeyLookup } from '../core/llm-client.js';
+import { getGameSessions } from '../core/session-manager.js';
 import * as elo from './elo.js';
 
 // Wire DB key lookup into LLM client
@@ -195,6 +196,9 @@ api.post('/games/run', async (req, res) => {
     onGameRef: (game) => {
       gameRef = game;
 
+      // Store game ref for session inspector
+      activeGame.gameRef = game;
+
       // Link SSE events to game for DB storage
       game._sseEvents = activeGame.events;
 
@@ -239,6 +243,9 @@ api.post('/games/run', async (req, res) => {
       rounds: game.round,
       tokensInput: tokens.input,
       tokensOutput: tokens.output,
+      tokensCacheRead: tokens.cacheRead || 0,
+      tokensCacheWrite: tokens.cacheWrite || 0,
+      tokensTotalSent: tokens.totalSent || 0,
       apiCalls: tokens.calls,
     };
 
@@ -273,6 +280,31 @@ api.post('/games/:id/resume', (req, res) => {
 api.post('/games/:id/stop', (req, res) => {
   stopGame(req.params.id);
   res.json({ ok: true, action: 'stopped' });
+});
+
+// Session inspector: get all player sessions for a game
+api.get('/games/:id/sessions', (req, res) => {
+  const active = activeGames.get(req.params.id);
+  
+  // Try live sessions first
+  const liveSessions = getGameSessions(req.params.id);
+  if (Object.keys(liveSessions).length > 0) {
+    // Add player info from game ref
+    const players = active?.gameRef?.players || [];
+    return res.json({ sessions: liveSessions, players: players.map((p, i) => ({
+      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model,
+    }))});
+  }
+  
+  // Try finished game sessions stored on game object
+  if (active?.gameRef?.sessions) {
+    const players = active.gameRef.players || [];
+    return res.json({ sessions: active.gameRef.sessions, players: players.map((p, i) => ({
+      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model,
+    }))});
+  }
+  
+  res.json({ sessions: {}, players: [] });
 });
 
 // --- Provider & Model Settings ---

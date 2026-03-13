@@ -5,6 +5,7 @@
  */
 
 import { getTokenUsage, FatalLLMError } from './llm-client.js';
+import { clearGameSessions, getGameSessions } from './session-manager.js';
 
 // Game control: pause/resume/stop
 const gameControls = new Map();
@@ -96,6 +97,9 @@ export async function runGame(gamePlugin, options = {}) {
             round: game.round,
             tokensInput: tokens.input,
             tokensOutput: tokens.output,
+            tokensCacheRead: tokens.cacheRead || 0,
+            tokensCacheWrite: tokens.cacheWrite || 0,
+            tokensTotalSent: tokens.totalSent || 0,
             apiCalls: tokens.calls,
           });
         },
@@ -120,6 +124,18 @@ export async function runGame(gamePlugin, options = {}) {
   }
 
   game.tokenUsage = getTokenUsage(game.id);
+  game.sessions = getGameSessions(game.id); // Save sessions for prompt inspector
+  // Full sessions for DB persistence (system prompt + messages + tokens)
+  game.sessionStats = {};
+  for (const [key, session] of Object.entries(game.sessions)) {
+    game.sessionStats[key] = {
+      systemPrompt: session.systemPrompt,
+      messages: session.messages,
+      tokens: session.tokens,
+      messageCount: session.messageCount,
+    };
+  }
+  clearGameSessions(game.id);
   gameControls.delete(game.id);
 
   onEvent({

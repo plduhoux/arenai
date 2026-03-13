@@ -283,6 +283,12 @@ h3 { font-size: 1.1rem; }
 .status-value.status-finished { color: var(--success); }
 .status-value.status-error { color: var(--danger); }
 
+.status-sub {
+  font-size: 0.6rem;
+  color: var(--text2);
+  opacity: 0.7;
+}
+
 .status-matchup-row {
   display: flex;
   align-items: center;

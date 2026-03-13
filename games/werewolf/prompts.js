@@ -3,9 +3,112 @@
  * Concise prompts targeting ~100k tokens per game.
  */
 
-import { askLLM } from '../../core/llm-client.js';
+import { askLLM, askLLMSession } from '../../core/llm-client.js';
 
 const FULL_DETAIL_ROUNDS = 2;
+
+// Track last-sent log index per player to only send delta
+const playerLogCursors = new Map();
+
+// Track which phase instructions have been sent per player per round
+const phaseSent = new Map();
+
+function isFirstCall(game, playerIndex, phase) {
+  const key = `${game.id}:${playerIndex}:${phase}:${game.round}`;
+  if (phaseSent.has(key)) return false;
+  phaseSent.set(key, true);
+  return true;
+}
+
+function getPlayerLogKey(gameId, playerIndex) {
+  return `${gameId}:${playerIndex}`;
+}
+
+export function resetPromptState(gameId) {
+  for (const key of playerLogCursors.keys()) {
+    if (key.startsWith(`${gameId}:`)) playerLogCursors.delete(key);
+  }
+  for (const key of phaseSent.keys()) {
+    if (key.startsWith(`${gameId}:`)) phaseSent.delete(key);
+  }
+}
+
+function getNewEvents(game, playerIndex) {
+  const key = getPlayerLogKey(game.id, playerIndex);
+  const cursor = playerLogCursors.get(key) || 0;
+  
+  // Get events since last call, filtered to what this player can see
+  const player = game.players[playerIndex];
+  const newEvents = game.log.slice(cursor).filter(e => {
+    // Skip player's own messages (they already know what they said - it's in their assistant response)
+    const isOwnEvent = e.player === playerIndex;
+    
+    // Wolf chat: only visible to wolves, skip own messages
+    if (e.type === 'wolf_chat') return player.role === 'werewolf' && !isOwnEvent;
+    // Discussion: skip own messages
+    if (e.type === 'discussion') return !isOwnEvent;
+    // Vote: skip own votes
+    if (e.type === 'vote') return !isOwnEvent;
+    // Mayor candidacy: skip own candidacy
+    if (e.type === 'mayor_candidacy') return !isOwnEvent;
+    // Seer inspect result: visible to seer (they need to know the result!)
+    if (e.type === 'seer_inspect') return player.role === 'seer';
+    // Witch action only visible to witch (always own action, skip)
+    if (e.type === 'witch_save' || e.type === 'witch_kill') return false;
+    // Private thoughts not shared
+    if (e.type === 'thought') return false;
+    // Everything else is public
+    return true;
+  });
+  
+  // Update cursor
+  playerLogCursors.set(key, game.log.length);
+  
+  return newEvents;
+}
+
+function formatNewEvents(events) {
+  const lines = [];
+  for (const e of events) {
+    switch (e.type) {
+      case 'dawn':
+        if (e.deaths?.length) lines.push(`Dawn: ${e.deaths.map(d => `${d.name} was killed`).join(', ')}.`);
+        else lines.push('Dawn: everyone survived (Witch saved).');
+        break;
+      case 'discussion':
+        lines.push(`${e.playerName}: "${e.message}"`);
+        break;
+      case 'vote':
+        lines.push(`${e.playerName} votes ${e.targetName}`);
+        break;
+      case 'elimination':
+        lines.push(`${e.targetName} eliminated (was ${e.role}).`);
+        break;
+      case 'no_elimination':
+        lines.push('No majority: nobody eliminated.');
+        break;
+      case 'wolf_chat':
+        lines.push(`[Wolf] ${e.playerName}: "${e.message}"`);
+        break;
+      case 'seer_inspect':
+        lines.push(`[Seer] You inspected ${e.targetName}: ${e.result}`);
+        break;
+      case 'mayor_candidacy':
+        lines.push(`${e.playerName} ${e.runs ? 'runs for mayor' : 'declines'}: "${e.reason || ''}"`);
+        break;
+      case 'mayor_elected':
+        lines.push(`${e.playerName} elected Mayor.`);
+        break;
+      case 'mayor_successor':
+        lines.push(`${e.playerName} named ${e.successorName} as new Mayor.`);
+        break;
+      case 'wolf_action':
+        lines.push(`Wolves targeted ${e.targetName}.`);
+        break;
+    }
+  }
+  return lines.join('\n');
+}
 
 function getPlayerModel(game, playerIndex) {
   return game.players[playerIndex].model || game.model;
@@ -13,9 +116,8 @@ function getPlayerModel(game, playerIndex) {
 
 function buildSystemPrompt(game, playerIndex) {
   const player = game.players[playerIndex];
-  const alive = game.players
-    .map((p, i) => p.alive ? `  ${p.name} (#${i})` : `  ${p.name} (#${i}) [DEAD]`)
-    .join('\n');
+  // Static player list: deaths are communicated via events in the conversation
+  const playerList = game.players.map((p, i) => `  ${p.name} (#${i})`).join('\n');
 
   let roleInfo = '';
   switch (player.role) {
@@ -34,35 +136,18 @@ function buildSystemPrompt(game, playerIndex) {
       roleInfo = `You are a VILLAGER. Find and eliminate the werewolves through discussion and voting.`;
   }
 
-  // Mayor info
-  let mayorInfo = '';
-  if (game.mayor !== null && game.mayor !== undefined) {
-    const mayorName = game.players[game.mayor]?.name;
-    if (game.mayor === playerIndex) {
-      mayorInfo = `\nYou are the MAYOR. Your vote breaks ties during elimination votes.`;
-    } else {
-      mayorInfo = `\nThe Mayor is ${mayorName}. The Mayor's vote breaks ties.`;
-    }
-  }
-
-  // Knowledge from seer
-  const knowledge = game.log
-    .filter(e => e.type === 'seer_inspect' && playerIndex === game.players.findIndex(p => p.role === 'seer'))
-    .map(e => `  ${e.targetName}: ${e.result}`)
-    .join('\n');
-  const knowledgeStr = knowledge ? `\nYour inspections:\n${knowledge}` : '';
-
   return `You are ${player.name} in a Werewolf game.
-${roleInfo}${mayorInfo}${knowledgeStr}
+${roleInfo}
 
 Players:
-${alive}
+${playerList}
 
 Rules:
 - Werewolves MUST kill someone every night (no skipping).
 - If nobody dies at dawn, it means the Witch used her save potion (single-use for the entire game).
 - All day discussions, votes, and mayor elections are PUBLIC.
-- Be CONCISE (1-2 sentences). Only elaborate with real arguments.`;
+- Be CONCISE (1-2 sentences). Only elaborate with real arguments.
+- Deaths, eliminations, and mayor changes are announced as events during the game.`;
 }
 
 function buildContext(game) {
@@ -120,14 +205,26 @@ function formatEvent(e) {
 }
 
 function ask(game, playerIndex, userPrompt, parseResponse) {
-  const systemPrompt = buildSystemPrompt(game, playerIndex);
-  const context = buildContext(game);
-  return askLLM({
+  const model = getPlayerModel(game, playerIndex);
+  const systemPrompt = buildSystemPrompt(game, playerIndex, { static: true });
+
+  // Always use sessions: send delta events + prompt.
+  // Cache handles the rest (Anthropic caches the prefix automatically).
+  // Haiku threshold is 2048 tokens (kicks in after a few turns).
+  // Sonnet/Opus threshold is 1024 (kicks in almost immediately).
+  const newEvents = getNewEvents(game, playerIndex);
+  const deltaContext = formatNewEvents(newEvents);
+  const fullPrompt = deltaContext 
+    ? `${deltaContext}\n\n${userPrompt}` 
+    : userPrompt;
+
+  return askLLMSession({
     gameId: game.id,
-    model: getPlayerModel(game, playerIndex),
+    model,
     systemPrompt,
-    userPrompt: `${context}\n\n${userPrompt}`,
+    userPrompt: fullPrompt,
     playerName: game.players[playerIndex].name,
+    playerKey: `player:${playerIndex}:${game.players[playerIndex].name}`,
     parseResponse,
   });
 }
@@ -182,17 +279,18 @@ export function getWolfChat(game, wolfIndex, chatHistory) {
     .filter(p => p.alive && p.party !== 'werewolf');
   const eligibleStr = eligible.map(p => `${p.name} (#${p.index})`).join(', ');
 
-  const chatStr = chatHistory.length > 0
-    ? `\nYour private conversation:\n${chatHistory.map(m => `${m.name}: "${m.message}"`).join('\n')}\n`
-    : '';
-
-  return ask(game, wolfIndex,
-    `NIGHT - WOLF CHAT (private with ${partner?.name || 'partner'}).${chatStr}
+  // First call: full instruction. Subsequent: just ask to respond.
+  const first = isFirstCall(game, wolfIndex, 'wolf_chat');
+  const prompt = first
+    ? `NIGHT - WOLF CHAT (private with ${partner?.name || 'partner'}).
 Possible targets: ${eligibleStr}
 Discuss strategy and suggest a target. Be brief.
 
 MESSAGE: your message to your partner
-TARGET: player number (your current preference)`,
+TARGET: player number (your current preference)`
+    : `Respond to your partner.`;
+
+  return ask(game, wolfIndex, prompt,
     (text) => {
       const messageMatch = text.match(/MESSAGE:\s*(.+?)(?=\nTARGET:|$)/is);
       const targetMatch = text.match(/TARGET:\s*(\d+)/i);
@@ -221,16 +319,9 @@ export function wolfChooseTarget(game) {
 
   const eligibleStr = eligible.map(p => `${p.name} (#${p.index})`).join(', ');
 
-  // Get wolf chat history for context
-  const wolfChatMsgs = game.log
-    .filter(e => e.type === 'wolf_chat' && e.round === game.round)
-    .map(e => `${e.playerName}: "${e.message}"`).join('\n');
-
-  const chatContext = wolfChatMsgs ? `\nYour discussion:\n${wolfChatMsgs}\n` : '';
-
   const promises = wolves.map(w =>
     ask(game, w.index,
-      `NIGHT: Final decision. Choose your victim.${chatContext}\nTargets: ${eligibleStr}\nReply with the player number only.`,
+      `Final decision. Choose your victim. Reply with the player number only.`,
       (text) => {
         const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
         for (const n of nums) if (eligible.some(e => e.index === n)) return n;
@@ -257,19 +348,16 @@ export function seerInspect(game) {
 
   const eligibleStr = eligible.map(p => `${p.name} (#${p.index})`).join(', ');
 
-  const pastResults = game.log
-    .filter(e => e.type === 'seer_inspect')
-    .map(e => `  ${e.targetName}: ${e.result}`)
-    .join('\n');
-
-  const pastInfo = pastResults ? `\nYour past inspections:\n${pastResults}\n` : '';
-
+  const first = isFirstCall(game, seerIndex, 'seer');
   const thoughtPrompt = game.enableThoughts
-    ? `\nTHOUGHT: your private reasoning about who to inspect and why`
+    ? `\nTHOUGHT: your private reasoning`
     : '';
 
-  return ask(game, seerIndex,
-    `NIGHT: Choose someone to inspect.${pastInfo}\nPlayers: ${eligibleStr}${thoughtPrompt}\nTARGET: player number only`,
+  const prompt = first
+    ? `NIGHT: Choose a player to inspect (learn their true role).\nPlayers: ${eligibleStr}${thoughtPrompt}\nTARGET: player number only`
+    : `Choose someone to inspect.\nPlayers: ${eligibleStr}\nTARGET: player number only`;
+
+  return ask(game, seerIndex, prompt,
     (text) => {
       const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET:)/is);
       const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
@@ -323,17 +411,13 @@ export function witchDecide(game, wolfTargetIndex) {
 // --- Day Actions ---
 
 export function getDayDiscussion(game, playerIndex) {
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `${e.playerName}: "${e.message}"`)
-    .join('\n');
-
+  const first = isFirstCall(game, playerIndex, 'discussion');
   const thoughtPrompt = game.enableThoughts
     ? `\nTHOUGHT: your private reasoning (not shared with other players)`
     : '';
 
-  return ask(game, playerIndex,
-    `DAY PHASE: Discuss who to eliminate.${roundDiscussion ? `\n\nSaid so far:\n${roundDiscussion}` : ''}
+  const prompt = first
+    ? `DAY PHASE: Discuss who to eliminate.
 
 Choose a stance and speak (or PASS). NAME specific players when accusing or defending.
 - ATTACK: accuse a player by name
@@ -342,14 +426,23 @@ Choose a stance and speak (or PASS). NAME specific players when accusing or defe
 - PASS: stay silent
 ${thoughtPrompt}
 STANCE: attack/defense/analysis/pass
-MESSAGE: your PUBLIC statement (1-2 sentences, name players)`,
+MESSAGE: your PUBLIC statement (1-2 sentences, name players)`
+    : `Your turn to speak.${thoughtPrompt}\nSTANCE: attack/defense/analysis/pass\nMESSAGE: your PUBLIC statement`;
+
+  return ask(game, playerIndex, prompt,
     (text) => {
-      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nSTANCE:)/is);
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\n(?:STANCE|MESSAGE|RUN))/is);
       const stanceMatch = text.match(/STANCE:\s*(attack|defense|analysis|pass)/i);
       const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
       const stance = stanceMatch ? stanceMatch[1].toLowerCase() : 'analysis';
-      const message = stance === 'pass' ? 'PASS' :
-        (messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : 'PASS');
+      let message = 'PASS';
+      if (stance !== 'pass' && messageMatch) {
+        // Clean message: strip any leaked THOUGHT/STANCE
+        message = messageMatch[1]
+          .replace(/THOUGHT:\s*.+/is, '')
+          .replace(/^["']|["']$/g, '')
+          .trim() || 'PASS';
+      }
       const thought = thoughtMatch ? thoughtMatch[1].trim() : null;
       return { stance, message, thought };
     },
@@ -357,15 +450,22 @@ MESSAGE: your PUBLIC statement (1-2 sentences, name players)`,
 }
 
 export function getDayRebuttal(game, playerIndex) {
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `${e.playerName}: "${e.message}"`)
-    .join('\n');
-
   return ask(game, playerIndex,
-    `Discussion:\n${roundDiscussion}\n\nYour name was mentioned. Respond briefly (1 sentence) or PASS.`,
+    `Your name was mentioned. Respond briefly (1 sentence) or PASS.`,
     (text) => {
-      const clean = text.replace(/^["']|["']$/g, '').replace(/^MESSAGE:\s*/i, '').trim();
+      // Strip any THOUGHT/STANCE that LLM might include even though not asked
+      const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
+      if (messageMatch) {
+        const clean = messageMatch[1].replace(/^["']|["']$/g, '').trim();
+        return clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
+      }
+      // Fallback: strip THOUGHT and STANCE if present
+      const clean = text
+        .replace(/THOUGHT:\s*.+?(?=\n(?:STANCE|MESSAGE)|$)/is, '')
+        .replace(/STANCE:\s*\w+\s*/i, '')
+        .replace(/^["']|["']$/g, '')
+        .replace(/^MESSAGE:\s*/i, '')
+        .trim();
       return clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
     },
   );
@@ -391,15 +491,8 @@ export function getDayVote(game, playerIndex) {
 
   const eligibleStr = alive.map(p => `${p.name} (#${p.index})`).join(', ');
 
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => `${e.playerName}: "${e.message}"`)
-    .join('\n');
-
   return ask(game, playerIndex,
-    `VOTE: You MUST vote to eliminate someone. No abstention allowed.${roundDiscussion ? `\nDiscussion:\n${roundDiscussion}\n` : ''}
-Players: ${eligibleStr}
-Reply: player number`,
+    `VOTE: Eliminate someone. ${eligibleStr}\nReply: player number`,
     (text) => {
       const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
       for (const n of nums) if (alive.some(a => a.index === n)) return { target: n };
