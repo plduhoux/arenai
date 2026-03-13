@@ -83,6 +83,9 @@ function narrate(onEvent, text) {
   onEvent({ type: 'narrator', message: text });
 }
 
+// Discussion — Room Talk (sequential within each room, rooms in parallel)
+// Within each room, players speak one at a time so they can react to each other.
+// Both rooms run in parallel (they can't hear each other anyway).
 async function phaseDiscussion(game, { onEvent }) {
   const display = getDisplayState(game);
   // Degressive discussion: 3 turns round 1, 2 turns round 2, 1 turn round 3
@@ -90,62 +93,70 @@ async function phaseDiscussion(game, { onEvent }) {
   narrate(onEvent, `Round ${game.round}/${game.maxRounds}: Room A (${display.roomACount}) and Room B (${display.roomBCount}). ${discussionTurns} discussion turn(s).`);
   onEvent({ type: 'round_start', round: game.round, ...display });
 
-  const roomAPlayers = engine.getPlayerIndicesInRoom(game, 'A');
-  const roomBPlayers = engine.getPlayerIndicesInRoom(game, 'B');
-
   for (let turn = 0; turn < discussionTurns; turn++) {
     if (turn > 0) narrate(onEvent, `Discussion turn ${turn + 1}/${discussionTurns}.`);
 
-    // Both rooms discuss in parallel
-    const allPromises = [
-      ...roomAPlayers.map(i => prompts.getRoomDiscussion(game, i, turn).then(r => ({ ...r, playerIndex: i, room: 'A' }))),
-      ...roomBPlayers.map(i => prompts.getRoomDiscussion(game, i, turn).then(r => ({ ...r, playerIndex: i, room: 'B' }))),
-    ];
-
-    const results = await Promise.all(allPromises);
-
-    for (const room of ['A', 'B']) {
-      const roomResults = results.filter(r => r.room === room);
-      const roomPlayers = room === 'A' ? roomAPlayers : roomBPlayers;
-      const names = roomPlayers.map(i => game.players[i].name).join(', ');
-      onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, players: names });
-
-      for (const r of roomResults) {
-        const player = game.players[r.playerIndex];
-
-        if (r.message && r.message !== 'PASS') {
-          game.log.push({ type: 'discussion', round: game.round, room, player: r.playerIndex, playerName: player.name, message: r.message });
-          onEvent({ type: 'discussion', room, player: player.name, message: r.message });
-        }
-      }
-    }
+    // Both rooms discuss in parallel, but within each room it's sequential
+    await Promise.all([
+      runRoomDiscussion(game, 'A', turn, onEvent),
+      runRoomDiscussion(game, 'B', turn, onEvent),
+    ]);
   }
 
-  // Dedicated card sharing phase (after discussion, before leader vote)
+  // Card sharing phase — sequential within each room (rooms in parallel)
   narrate(onEvent, `Card sharing: players may privately show their card to one person in their room.`);
-  const sharePromises = [
-    ...roomAPlayers.map(i => prompts.getCardShare(game, i).then(r => ({ ...r, playerIndex: i, room: 'A' }))),
-    ...roomBPlayers.map(i => prompts.getCardShare(game, i).then(r => ({ ...r, playerIndex: i, room: 'B' }))),
-  ];
-  const shareResults = await Promise.all(sharePromises);
+  await Promise.all([
+    runRoomCardSharing(game, 'A', onEvent),
+    runRoomCardSharing(game, 'B', onEvent),
+  ]);
 
-  for (const r of shareResults) {
-    if (r.share && r.target !== null) {
-      const player = game.players[r.playerIndex];
-      const targetPlayer = game.players[r.target];
-      if (targetPlayer && targetPlayer.room === r.room) {
-        engine.addShare(game, r.playerIndex, r.target, r.shareType || 'color');
+  game.phase = 'leader_pick';
+}
+
+// Sequential discussion within a single room
+async function runRoomDiscussion(game, room, turn, onEvent) {
+  const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
+  const names = roomPlayers.map(i => game.players[i].name).join(', ');
+  onEvent({ type: 'room_header', room, playerCount: roomPlayers.length, players: names });
+
+  // Shuffle speaking order each turn
+  const order = [...roomPlayers].sort(() => Math.random() - 0.5);
+
+  for (const playerIndex of order) {
+    const result = await prompts.getRoomDiscussion(game, playerIndex, turn);
+    const player = game.players[playerIndex];
+
+    if (result.message && result.message !== 'PASS') {
+      game.log.push({
+        type: 'discussion', round: game.round, room,
+        player: playerIndex, playerName: player.name,
+        message: result.message,
+      });
+      onEvent({ type: 'discussion', room, player: player.name, message: result.message });
+    }
+  }
+}
+
+// Sequential card sharing within a single room
+async function runRoomCardSharing(game, room, onEvent) {
+  const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
+
+  for (const playerIndex of roomPlayers) {
+    const result = await prompts.getCardShare(game, playerIndex);
+    if (result.share && result.target !== null) {
+      const player = game.players[playerIndex];
+      const targetPlayer = game.players[result.target];
+      if (targetPlayer && targetPlayer.room === room) {
+        engine.addShare(game, playerIndex, result.target, result.shareType || 'color');
         onEvent({
-          type: 'share', room: r.room,
+          type: 'share', room,
           player: player.name,
           target: targetPlayer.name,
-          shareType: r.shareType || 'color',
+          shareType: result.shareType || 'color',
         });
       }
     }
   }
-
-  game.phase = 'leader_pick';
 }
 
 async function phaseLeaderPick(game, { onEvent }) {

@@ -417,17 +417,19 @@ export function getDayDiscussion(game, playerIndex) {
     : '';
 
   const prompt = first
-    ? `DAY PHASE: Discuss who to eliminate.
+    ? `DAY PHASE: Discuss who to eliminate. You speak one at a time. React to what others have said.
 
 Choose a stance and speak (or PASS). NAME specific players when accusing or defending.
-- ATTACK: accuse a player by name
-- DEFENSE: defend yourself if accused
-- ANALYSIS: observations about specific players
-- PASS: stay silent
+- ATTACK: accuse a player by name with a specific reason
+- DEFENSE: defend yourself or counter an accusation
+- ANALYSIS: share observations about specific players
+- PASS: stay silent (only if you truly have nothing to add)
 ${thoughtPrompt}
 STANCE: attack/defense/analysis/pass
-MESSAGE: your PUBLIC statement (1-2 sentences, name players)`
-    : `Your turn to speak.${thoughtPrompt}\nSTANCE: attack/defense/analysis/pass\nMESSAGE: your PUBLIC statement`;
+MESSAGE: your PUBLIC statement (2-3 sentences, reference other players' arguments)`
+    : `Your turn to speak. Respond to what's been said, build on arguments, or challenge them.${thoughtPrompt}
+STANCE: attack/defense/analysis/pass
+MESSAGE: your PUBLIC statement`;
 
   return ask(game, playerIndex, prompt,
     (text) => {
@@ -437,7 +439,6 @@ MESSAGE: your PUBLIC statement (1-2 sentences, name players)`
       const stance = stanceMatch ? stanceMatch[1].toLowerCase() : 'analysis';
       let message = 'PASS';
       if (stance !== 'pass' && messageMatch) {
-        // Clean message: strip any leaked THOUGHT/STANCE
         message = messageMatch[1]
           .replace(/THOUGHT:\s*.+/is, '')
           .replace(/^["']|["']$/g, '')
@@ -449,27 +450,7 @@ MESSAGE: your PUBLIC statement (1-2 sentences, name players)`
   );
 }
 
-export function getDayRebuttal(game, playerIndex) {
-  return ask(game, playerIndex,
-    `Your name was mentioned. Respond briefly (1 sentence) or PASS.`,
-    (text) => {
-      // Strip any THOUGHT/STANCE that LLM might include even though not asked
-      const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
-      if (messageMatch) {
-        const clean = messageMatch[1].replace(/^["']|["']$/g, '').trim();
-        return clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
-      }
-      // Fallback: strip THOUGHT and STANCE if present
-      const clean = text
-        .replace(/THOUGHT:\s*.+?(?=\n(?:STANCE|MESSAGE)|$)/is, '')
-        .replace(/STANCE:\s*\w+\s*/i, '')
-        .replace(/^["']|["']$/g, '')
-        .replace(/^MESSAGE:\s*/i, '')
-        .trim();
-      return clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
-    },
-  );
-}
+
 
 export function getRunoffVote(game, playerIndex, tiedPlayers) {
   const tiedStr = tiedPlayers.map(i => `${game.players[i].name} (#${i})`).join(', ');

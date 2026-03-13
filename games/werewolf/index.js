@@ -15,7 +15,7 @@ export const defaultConfig = {
   names: ['Alice', 'Bruno', 'Clara', 'David', 'Eva', 'Felix', 'Gina', 'Hugo', 'Iris', 'Jules'],
   model: 'claude-sonnet-4-5',
   enableThoughts: false,
-  discussionRounds: 1,
+  discussionRounds: 2,
   winCondition: 'parity',
 };
 
@@ -255,63 +255,75 @@ async function phaseNight(game, { onEvent }) {
   game.phase = 'day_discussion';
 }
 
-// Day Discussion
+// Day Discussion — Village Council (sequential)
+// Each player speaks one at a time. Each subsequent speaker sees all previous messages.
+// Round 1: randomized order (mayor speaks first if alive).
+// Round 2: mentioned/attacked players speak first, then others.
 async function phaseDayDiscussion(game, { onEvent }) {
   const alive = engine.getAliveIndices(game);
-  const rounds = game.discussionRounds || 1;
+  const rounds = Math.max(1, game.discussionRounds || 2);
 
-  narrate(onEvent, `Day ${game.round}: ${alive.length} players discuss. ${rounds > 1 ? `${rounds} rounds of debate.` : ''} Someone must be eliminated.`);
+  narrate(onEvent, `Day ${game.round}: ${alive.length} players discuss. ${rounds} rounds of debate. Someone must be eliminated.`);
 
   for (let dr = 0; dr < rounds; dr++) {
-    // All players speak (parallel for round 1, sequential for others could be added)
-    const discussionPromises = alive.map(i => prompts.getDayDiscussion(game, i));
-    const results = await Promise.all(discussionPromises);
+    const speakingOrder = getSpeakingOrder(game, alive, dr);
 
-    // Sort by stance priority: defense first
-    const STANCE_PRIORITY = { defense: 0, attack: 1, analysis: 2 };
-    const contributions = [];
-    for (let j = 0; j < alive.length; j++) {
-      const { stance, message, thought } = results[j];
-      if (message !== 'PASS') {
-        contributions.push({ playerIndex: alive[j], stance, message, thought });
+    for (const playerIndex of speakingOrder) {
+      const { stance, message, thought } = await prompts.getDayDiscussion(game, playerIndex);
+
+      if (thought) {
+        onEvent({ type: 'thought', player: game.players[playerIndex].name, thought: thought });
       }
-    }
-    contributions.sort((a, b) => (STANCE_PRIORITY[a.stance] ?? 3) - (STANCE_PRIORITY[b.stance] ?? 3));
 
-    for (const c of contributions) {
-      if (c.thought) {
-        onEvent({ type: 'thought', player: game.players[c.playerIndex].name, thought: c.thought });
-      }
-      game.log.push({ type: 'discussion', round: game.round, player: c.playerIndex, playerName: game.players[c.playerIndex].name, message: c.message });
-      onEvent({ type: 'discussion', player: game.players[c.playerIndex].name, stance: c.stance, message: c.message });
-    }
-
-    // Rebuttals: round 1 of game = pick 2 random, later = mentioned players
-    const allMessages = contributions.map(c => c.message).join(' ').toLowerCase();
-    let mentioned;
-    if (game.round <= 1 && dr === 0) {
-      const contributors = contributions.map(c => c.playerIndex);
-      const shuffled = [...contributors].sort(() => Math.random() - 0.5);
-      mentioned = shuffled.slice(0, 2);
-    } else {
-      mentioned = alive.filter(i => allMessages.includes(game.players[i].name.toLowerCase()));
-    }
-
-    if (mentioned.length > 0) {
-      narrate(onEvent, `Rebuttal: ${mentioned.map(i => game.players[i].name).join(', ')} respond.`);
-      const rebuttalPromises = mentioned.map(i => prompts.getDayRebuttal(game, i).then(msg => ({ i, msg })));
-      const rebuttals = await Promise.all(rebuttalPromises);
-
-      for (const { i, msg } of rebuttals) {
-        if (msg && msg !== 'PASS') {
-          game.log.push({ type: 'discussion', round: game.round, player: i, playerName: game.players[i].name, message: msg });
-          onEvent({ type: 'discussion', player: game.players[i].name, stance: 'rebuttal', message: msg });
-        }
+      if (message && message !== 'PASS') {
+        game.log.push({
+          type: 'discussion', round: game.round,
+          player: playerIndex, playerName: game.players[playerIndex].name,
+          message,
+        });
+        onEvent({
+          type: 'discussion',
+          player: game.players[playerIndex].name,
+          stance,
+          message,
+        });
       }
     }
   }
 
   game.phase = 'day_vote';
+}
+
+// Determine speaking order for a discussion round.
+// Round 0: mayor first (if alive), then shuffled others.
+// Round 1+: mentioned/attacked players first, then others (shuffled).
+function getSpeakingOrder(game, alive, roundIndex) {
+  if (roundIndex === 0) {
+    // Mayor first, then shuffled
+    const order = [...alive].sort(() => Math.random() - 0.5);
+    if (game.mayor !== null && order.includes(game.mayor)) {
+      const idx = order.indexOf(game.mayor);
+      order.splice(idx, 1);
+      order.unshift(game.mayor);
+    }
+    return order;
+  }
+
+  // Round 1+: find players mentioned in recent discussion, they go first
+  const recentMessages = game.log
+    .filter(e => e.type === 'discussion' && e.round === game.round)
+    .map(e => e.message)
+    .join(' ')
+    .toLowerCase();
+
+  const mentioned = alive.filter(i => recentMessages.includes(game.players[i].name.toLowerCase()));
+  const notMentioned = alive.filter(i => !mentioned.includes(i));
+
+  // Shuffle within each group
+  const shuffleMentioned = [...mentioned].sort(() => Math.random() - 0.5);
+  const shuffleOthers = [...notMentioned].sort(() => Math.random() - 0.5);
+
+  return [...shuffleMentioned, ...shuffleOthers];
 }
 
 // Day Vote
