@@ -223,7 +223,7 @@ export function saveGame(game) {
     winner: game.winner,
     winReason: game.winReason,
     players: JSON.stringify(game.players.map(p => ({
-      name: p.name, role: p.role, party: p.party, model: p.model, alive: p.alive,
+      name: p.name, role: p.role, party: p.party, team: p.team, model: p.model, alive: p.alive,
     }))),
     terms: JSON.stringify(game.terms || null),
     tokensIn: game.tokenUsage?.input || 0,
