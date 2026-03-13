@@ -11,7 +11,7 @@ export const name = 'Werewolf';
 export const description = 'Classic social deduction: villagers hunt werewolves by day, werewolves hunt villagers by night. Features Seer, Witch, Mayor election, and wolf private chat.';
 
 export const defaultConfig = {
-  playerCount: 6,
+  playerCount: 7,
   names: ['Alice', 'Bruno', 'Clara', 'David', 'Eva', 'Felix', 'Gina', 'Hugo', 'Iris', 'Jules'],
   model: 'claude-sonnet-4-5',
   enableThoughts: false,
