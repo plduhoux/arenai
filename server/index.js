@@ -356,8 +356,21 @@ api.post('/models/test', async (req, res) => {
 app.use('/api', api);
 
 // Static files (Vue build)
-app.use(express.static(join(__dirname, '..', 'public')));
+// Assets have content hash in filename — cache forever
+// HTML must never be cached (to pick up new asset hashes)
+app.use('/assets', express.static(join(__dirname, '..', 'public', 'assets'), {
+  maxAge: '1y',
+  immutable: true,
+}));
+app.use(express.static(join(__dirname, '..', 'public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
 app.get('/{*splat}', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(join(__dirname, '..', 'public', 'index.html'));
 });
 
