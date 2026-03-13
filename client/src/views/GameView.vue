@@ -35,6 +35,7 @@
       <LiveFeed
         :events="liveEvents"
         :running="sseState.status === 'running' || sseState.status === 'paused'"
+        :gameType="sseState.gameType"
       />
     </template>
 
@@ -58,7 +59,7 @@
 
       <RoundCards :events="logs" :currentRound="0" :gameType="game.game_type" />
 
-      <LiveFeed :events="logs" :running="false" />
+      <LiveFeed :events="logs" :running="false" :gameType="game?.game_type" />
     </template>
   </div>
 </template>

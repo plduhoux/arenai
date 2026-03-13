@@ -82,8 +82,7 @@ const content = computed(() => {
 
     case 'discussion': {
       const stanceTag = e.stance ? ` <span class="stance-tag stance-${e.stance}">${e.stance}</span>` : ''
-      const roomTag = e.room ? ` <span class="room-tag room-${e.room.toLowerCase()}">[${e.room}]</span>` : ''
-      return `<span class="live-label">Discuss</span>${roomTag} ${pname(e.player)}${stanceTag}: ${esc(e.message)}`
+      return `<span class="live-label">Discuss</span> ${pname(e.player)}${stanceTag}: ${esc(e.message)}`
     }
 
     case 'vote': {
@@ -137,13 +136,13 @@ const content = computed(() => {
       return `<div class="room-header room-header-${e.room?.toLowerCase()}">Room ${esc(e.room)} <span class="room-players">${esc(e.playerNames || e.players)}</span></div>`
 
     case 'share':
-      return `<span class="live-label">Share</span> ${pname(e.player)} shows ${e.shareType} to ${pname(e.target)} [Room ${esc(e.room)}]`
+      return `<span class="live-label">Share</span> ${pname(e.player)} shows ${e.shareType} to ${pname(e.target)}`
 
     case 'leader_vote':
-      return `<span class="live-label">Nominate</span> ${pname(e.voter)} votes for ${pname(e.pick)} [Room ${esc(e.room)}]`
+      return `<span class="live-label">Nominate</span> ${pname(e.voter)} votes for ${pname(e.pick)}`
 
     case 'leader_elected':
-      return `<span class="live-label live-liberal">Leader</span> ${pname(e.player)} elected in Room ${esc(e.room)}`
+      return `<span class="live-label live-liberal">Leader</span> ${pname(e.player)} elected`
 
     case 'hostage_selected':
       return `<span class="live-label">Hostage</span> Room A sends: ${(e.roomA||[]).map(n => pname(n)).join(', ')} | Room B sends: ${(e.roomB||[]).map(n => pname(n)).join(', ')}`
