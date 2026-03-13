@@ -200,7 +200,6 @@ export function getRoomDiscussion(game, playerIndex, turn = 0) {
 
 Other players here: ${roommates}
 
-You may LIE about your team/role verbally. Only card shares are verified.
 ${thoughtPrompt}
 MESSAGE: your public statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
     : `Your turn to speak (Room ${room}, turn ${turn + 1}/${discussionTurns}).${thoughtPrompt}\nMESSAGE: your statement or PASS`;
