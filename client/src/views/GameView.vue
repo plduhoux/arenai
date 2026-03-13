@@ -108,9 +108,10 @@ async function fetchSessions() {
 const inspectorPlayers = computed(() => {
   // Live game: use SSE players + live sessions
   // Finished game: use DB players + session_stats
-  const players = sseState.value.players?.length
+  const raw = sseState.value.players?.length
     ? sseState.value.players
     : (game.value?.players || sessionsData.value.players || [])
+  const players = Array.isArray(raw) ? raw : []
   const dbSessionStats = game.value?.session_stats || {}
   return players.map((p, i) => {
     const idx = p.index ?? i
