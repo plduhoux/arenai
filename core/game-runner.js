@@ -4,7 +4,7 @@
  * Each game plugin exports phases, and the runner executes them in sequence.
  */
 
-import { getTokenUsage } from './llm-client.js';
+import { getTokenUsage, FatalLLMError } from './llm-client.js';
 
 // Game control: pause/resume/stop
 const gameControls = new Map();
@@ -104,6 +104,12 @@ export async function runGame(gamePlugin, options = {}) {
       console.error(`Error in round ${game.round}:`, err.message, err.stack);
       game.log.push({ type: 'error', round: game.round, message: err.message });
       onEvent({ type: 'error', round: game.round, message: err.message });
+
+      if (err instanceof FatalLLMError || err.fatal) {
+        console.error('Fatal error — stopping game immediately.');
+        gamePlugin.forceEnd(game, 'fatal_error');
+        break;
+      }
       gamePlugin.recoverFromError(game);
     }
   }

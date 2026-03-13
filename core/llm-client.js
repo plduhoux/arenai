@@ -6,6 +6,26 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+// --- Fatal errors (no retry, stop game immediately) ---
+
+export class FatalLLMError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'FatalLLMError';
+    this.fatal = true;
+  }
+}
+
+const FATAL_STATUS_CODES = [401, 403];
+
+function isFatalError(err) {
+  if (err instanceof FatalLLMError) return true;
+  if (err.fatal) return true;
+  const msg = err.message || '';
+  return FATAL_STATUS_CODES.some(code => msg.includes(`(${code})`)) ||
+    /authentication_error|invalid.*api.key|no.*api.*key.*configured/i.test(msg);
+}
+
 // --- Provider detection ---
 
 function getProviderForModel(model) {
@@ -28,10 +48,29 @@ const PROVIDER_URLS = {
 // --- Client cache ---
 const clients = new Map();
 
+function isAnthropicOAuthToken(key) {
+  return typeof key === 'string' && key.includes('sk-ant-oat');
+}
+
 function getAnthropicClient(apiKey) {
   const key = `anthropic:${apiKey?.slice(-8) || 'default'}`;
   if (clients.has(key)) return clients.get(key);
-  const client = new Anthropic({ apiKey });
+  
+  let client;
+  if (isAnthropicOAuthToken(apiKey)) {
+    // OAuth tokens (sk-ant-oat...) need authToken + Bearer auth, not x-api-key
+    client = new Anthropic({
+      apiKey: null,
+      authToken: apiKey,
+      dangerouslyAllowBrowser: true,
+      defaultHeaders: {
+        'anthropic-beta': 'oauth-2025-04-20',
+      },
+    });
+  } else {
+    client = new Anthropic({ apiKey });
+  }
+  
   clients.set(key, client);
   return client;
 }
@@ -90,7 +129,7 @@ function trackTokens(gameId, usage) {
 
 async function callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playerName }) {
   const apiKey = getApiKey('anthropic');
-  if (!apiKey) throw new Error('No Anthropic API key configured. Add one in Settings.');
+  if (!apiKey) throw new FatalLLMError('No Anthropic API key configured. Add one in Settings.');
   const client = getAnthropicClient(apiKey);
 
   const response = await client.messages.create({
@@ -110,7 +149,7 @@ async function callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playe
 
 async function callOpenAICompatible({ provider, model, systemPrompt, userPrompt, maxTokens }) {
   const apiKey = getApiKey(provider);
-  if (!apiKey) throw new Error(`No ${provider} API key configured. Add one in Settings.`);
+  if (!apiKey) throw new FatalLLMError(`No ${provider} API key configured. Add one in Settings.`);
   const baseUrl = getBaseUrl(provider);
 
   // OpenAI GPT-5+ uses max_completion_tokens, others use max_tokens
@@ -177,6 +216,11 @@ export async function askLLM({
       if (process.env.DEBUG_LLM) console.log(`[${playerName}] RAW: ${result.text.slice(0, 200)}`);
       return parseResponse(result.text);
     } catch (err) {
+      if (isFatalError(err)) {
+        console.error(`FATAL LLM error for ${playerName}: ${err.message}`);
+        const fatal = new FatalLLMError(err.message);
+        throw fatal;
+      }
       if (attempt === retries) {
         console.error(`LLM error for ${playerName}:`, err.message);
         throw err;
