@@ -1,94 +1,94 @@
-# ADR-001: Sessions conversationnelles par joueur
+# ADR-001: Per-Player Conversational Sessions
 
 **Date**: 2026-03-13
-**Statut**: Accepté, implémentation prévue
-**Auteurs**: Polo + Michel
+**Status**: Accepted, implementation planned
+**Authors**: Polo + Michel
 
-## Contexte
+## Context
 
-ArenAI est une plateforme de benchmark qui fait jouer des LLMs à des jeux de société (Loup-Garou, Secret Hitler, Two Rooms). Chaque partie implique ~100 appels LLM pour 7 joueurs sur 3-5 rounds.
+ArenAI is a benchmark platform that pits LLMs against each other in social deduction games (Werewolf, Secret Hitler, Two Rooms). Each game involves ~100 LLM calls for 7 players over 3-5 rounds.
 
-## Problème
+## Problem
 
-L'architecture initiale utilise des appels **one-shot** : chaque requête LLM reconstruit le prompt complet (system prompt + règles + contexte cumulé de tous les rounds + question). Le contexte est re-sérialisé intégralement à chaque appel.
+The initial architecture uses **one-shot** calls: each LLM request rebuilds the full prompt (system prompt + rules + cumulative context from all rounds + question). The context is re-serialized in its entirety for every call.
 
-Conséquences :
-1. **Coût excessif** : une partie Werewolf 3 rounds = 164K tokens input. Le même contenu est renvoyé des dizaines de fois.
-2. **Mémoire artificielle** : les rounds anciens (>3) sont résumés pour limiter les tokens, donc le joueur "oublie" des détails. Ce n'est pas un test fidèle de l'intelligence du modèle.
-3. **System prompt dominant** : les règles du jeu sont re-injectées à chaque appel (~100 fois par partie), ce qui "hypnotise" le modèle. On teste sa capacité à suivre des instructions répétées, pas son intelligence sociale.
-4. **Secret Hitler injouable** : les parties longues (10-15 rounds, mécaniques complexes) sont prohibitives en tokens.
+Consequences:
+1. **Excessive cost**: a 3-round Werewolf game = 164K input tokens. The same content is re-sent dozens of times.
+2. **Artificial memory**: older rounds (>3) are summarized to limit tokens, so the player "forgets" details. This is not a faithful test of the model's intelligence.
+3. **Dominant system prompt**: game rules are re-injected on every call (~100 times per game), which "hypnotizes" the model. We're testing its ability to follow repeated instructions, not its social intelligence.
+4. **Secret Hitler unplayable**: long games (10-15 rounds, complex mechanics) are cost-prohibitive.
 
-## Décision
+## Decision
 
-Remplacer les appels one-shot par des **sessions conversationnelles persistantes** : un tableau `messages[]` maintenu par joueur pendant toute la durée de la partie.
+Replace one-shot calls with **persistent conversational sessions**: a `messages[]` array maintained per player for the entire duration of the game.
 
 ### Architecture
 
 ```
-Joueur Alice (session):
-  system: "Tu es Alice, villageoise. Règles du jeu : ..."     ← envoyé 1 fois
-  user: "Nuit 1 : [events]. Tu es candidate au poste de maire. Veux-tu te présenter ?"
+Player Alice (session):
+  system: "You are Alice, a villager. Game rules: ..."     <- sent once
+  user: "Night 1: [events]. You may run for Mayor. Do you want to?"
   assistant: "THOUGHT: ... RUN/PASS: ... REASON: ..."
-  user: "Résultat élection : Eva élue maire. [events nuit]. Jour 1 : discutez."
+  user: "Election result: Eva elected Mayor. [night events]. Day 1: discuss."
   assistant: "THOUGHT: ... STANCE: analysis MESSAGE: ..."
-  user: "Rebuttals : [messages des autres]. Répondez."
+  user: "Rebuttals: [other players' messages]. Respond."
   assistant: "..."
-  ... (le contexte grandit, mais tout est caché par le prompt caching)
+  ... (context grows, but everything is cached by prompt caching)
 ```
 
-Chaque nouveau message n'ajoute que le **delta** : les événements du round en cours et la question. L'historique complet (system + échanges précédents) est caché automatiquement par le prompt caching du provider.
+Each new message only adds the **delta**: current round events and the question. The full history (system + previous exchanges) is automatically cached by the provider's prompt caching mechanism.
 
-### Prompt caching : le mécanisme clé
+### Prompt Caching: The Key Mechanism
 
-Les providers LLM cachent côté serveur le préfixe stable d'une conversation :
-- **Anthropic** : 90% de réduction sur les tokens cachés, cache 5 min (prolongé à chaque requête)
-- **OpenAI** : 50% de réduction, cache automatique
-- **Google** : 75% de réduction, cache configurable
-- **DeepSeek** : 90% de réduction, cache automatique
+LLM providers cache the stable prefix of a conversation server-side:
+- **Anthropic**: 90% reduction on cached tokens, 5-min cache (extended on each request)
+- **OpenAI**: 50% reduction, automatic caching
+- **Google**: 75% reduction, configurable cache
+- **DeepSeek**: 90% reduction, automatic caching
 
-Tant que le début de la conversation ne change pas (ce qui est le cas avec des sessions append-only), seuls les nouveaux tokens sont facturés au prix plein.
+As long as the conversation prefix doesn't change (which is the case with append-only sessions), only new tokens are billed at full price.
 
-## Conséquences
+## Consequences
 
-### 1. Réduction de coût estimée : ~80%
+### 1. Estimated Cost Reduction: ~80%
 
-| Métrique | Avant (one-shot) | Après (sessions) |
-|----------|-------------------|-------------------|
-| Tokens input / partie (Werewolf 3 rounds) | ~165K | ~35K |
-| Dont cachés (90% réduction) | 0% | ~90% |
-| Coût effectif input | 165K × prix plein | 35K nouveau + 130K × 10% |
-| Parties possibles pour le même budget | 1x | 4-5x |
+| Metric | Before (one-shot) | After (sessions) |
+|--------|-------------------|-------------------|
+| Input tokens / game (Werewolf 3 rounds) | ~165K | ~35K |
+| Cached (90% reduction) | 0% | ~90% |
+| Effective input cost | 165K x full price | 35K new + 130K x 10% |
+| Games possible for the same budget | 1x | 4-5x |
 
-### 2. Meilleure qualité de jeu
+### 2. Better Gameplay Quality
 
-- **Mémoire exacte** : le joueur se souvient de chaque mot dit, chaque vote, chaque pensée privée. Plus de résumé approximatif.
-- **Moins de contradictions** : un loup qui a accès à l'historique exact de ce qu'il a dit publiquement sera plus cohérent.
-- **Meilleure traque** : un villageois peut repérer des incohérences fines dans le discours des autres.
+- **Exact memory**: the player remembers every word said, every vote, every private thought. No more approximate summaries.
+- **Fewer contradictions**: a wolf with access to the exact history of what they said publicly will be more consistent.
+- **Better tracking**: a villager can spot subtle inconsistencies in others' discourse.
 
-### 3. Benchmark plus fidèle
+### 3. More Faithful Benchmark
 
-- **System prompt dilué** : les règles sont au début de la conversation, pas répétées 100 fois. Le modèle est immergé dans le gameplay, pas hypnotisé par les instructions.
-- **Test d'intelligence sociale** : on mesure la capacité du modèle à raisonner dans un contexte social complexe, pas à suivre des directives répétées.
-- **Comparable à un humain** : un joueur humain connaît les règles au début et se concentre ensuite sur la partie. Les sessions reproduisent ce comportement.
+- **Diluted system prompt**: rules are at the beginning of the conversation, not repeated 100 times. The model is immersed in gameplay, not hypnotized by instructions.
+- **Social intelligence test**: we measure the model's ability to reason in a complex social context, not to follow repeated directives.
+- **Human-comparable**: a human player learns the rules at the start and then focuses on the game. Sessions reproduce this behavior.
 
-### 4. Secret Hitler viable
+### 4. Secret Hitler Becomes Viable
 
-Les parties longues (10-15 rounds, discussions étendues, votes multiples, pouvoirs présidentiels, veto) deviennent économiquement faisables grâce à la réduction de coût.
+Long games (10-15 rounds, extended discussions, multiple votes, presidential powers, veto) become economically feasible thanks to the cost reduction.
 
-### 5. Mode Fight (batch) viable
+### 5. Fight Mode (Batch) Becomes Viable
 
-20 parties d'affilée pour un benchmark statistique : ~3M tokens avant, ~600K après.
+20 consecutive games for a statistical benchmark: ~3M tokens before, ~600K after.
 
-## Implémentation
+## Implementation
 
-- Maintenir un `Map<playerName, Message[]>` dans le game state
-- Le system prompt contient les règles + le rôle du joueur (envoyé 1 fois)
-- Chaque appel ajoute un `user` message (nouveau contexte + question) et reçoit un `assistant` message (réponse)
-- Quand un joueur meurt, sa session est close
-- Sauvegarder chaque paire prompt/réponse pour le "Prompt Inspector" (transparence)
+- Maintain a `Map<playerName, Message[]>` in the game state
+- System prompt contains rules + player role (sent once)
+- Each call appends a `user` message (new context + question) and receives an `assistant` message (response)
+- When a player dies, their session is closed
+- Save each prompt/response pair for the "Prompt Inspector" (transparency feature)
 
-## Risques
+## Risks
 
-- **Fenêtre de contexte** : sur des parties très longues, le contexte cumulé pourrait approcher la limite. Mitigation : les fenêtres actuelles (200K Anthropic, 128K OpenAI, 1M Google) sont largement suffisantes pour des parties de jeu.
-- **Cohérence cross-provider** : le prompt caching fonctionne différemment selon les providers. L'économie sera variable (90% Anthropic vs 50% OpenAI).
-- **Debug** : les prompts ne sont plus auto-contenus. Le Prompt Inspector (autre tâche backlog) est nécessaire pour inspecter l'état complet d'une session joueur.
+- **Context window**: on very long games, cumulative context could approach the limit. Mitigation: current windows (200K Anthropic, 128K OpenAI, 1M Google) are more than sufficient for game sessions.
+- **Cross-provider consistency**: prompt caching works differently across providers. Savings will vary (90% Anthropic vs 50% OpenAI).
+- **Debug**: prompts are no longer self-contained. The Prompt Inspector (separate backlog item) is required to inspect the full state of a player session.
