@@ -78,7 +78,7 @@ const content = computed(() => {
       return `<span class="live-label">Nominate</span> ${pname(e.president)} picks ${pname(e.chancellor)}`
 
     case 'thought':
-      return `<span class="live-label live-thought">Thought</span> ${pname(e.player)}: <span class="thought-text">${esc(e.thought)}</span>`
+      return `<span class="live-label live-thought">Thought</span> ${pname(e.player)}: <span class="thought-text">${esc(e.message || e.thought)}</span>`
 
     case 'discussion': {
       const stanceTag = e.stance ? ` <span class="stance-tag stance-${e.stance}">${e.stance}</span>` : ''

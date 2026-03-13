@@ -207,10 +207,11 @@ MESSAGE: your public statement (1-2 sentences). Say MESSAGE: PASS to stay silent
   return ask(game, playerIndex, prompt,
     (text) => {
       const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\n(?:MESSAGE|$))/is);
+      const thought = thoughtMatch?.[1]?.trim() || null;
       const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
       const message = messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : text.replace(/THOUGHT:.*$/is, '').trim();
-      if (!message || message === 'PASS') return { action: 'pass', message: 'PASS', thought: thoughtMatch?.[1]?.trim() || null };
-      return { action: 'discuss', message, thought: thoughtMatch?.[1]?.trim() || null };
+      if (!message || message === 'PASS') return { action: 'pass', message: 'PASS', thought };
+      return { action: 'discuss', message, thought };
     },
   );
 }
