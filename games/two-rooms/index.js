@@ -89,7 +89,7 @@ function narrate(onEvent, text) {
 async function phaseDiscussion(game, { onEvent, checkPause }) {
   const display = getDisplayState(game);
   // Degressive discussion: 3 turns round 1, 2 turns round 2, 1 turn round 3
-  const discussionTurns = Math.max(1, 4 - game.round);
+  const discussionTurns = game.round >= game.maxRounds ? 1 : 2;
   narrate(onEvent, `Round ${game.round}/${game.maxRounds}: Room A (${display.roomACount}) and Room B (${display.roomBCount}). ${discussionTurns} discussion turn(s).`);
   onEvent({ type: 'round_start', round: game.round, ...display });
 

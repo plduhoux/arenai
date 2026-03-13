@@ -185,7 +185,7 @@ function ask(game, playerIndex, userPrompt, parseResponse) {
 
 export function getRoomDiscussion(game, playerIndex, turn = 0) {
   const room = game.players[playerIndex].room;
-  const discussionTurns = Math.max(1, 4 - game.round);
+  const discussionTurns = game.round >= game.maxRounds ? 1 : 2;
   const roommates = engine.getPlayersInRoom(game, room)
     .filter(p => p.index !== playerIndex)
     .map(p => `${p.name} (#${p.index})`).join(', ');
