@@ -63,8 +63,8 @@ export function addAssistantMessage(session, content) {
 export function trackSessionTokens(session, usage) {
   session.tokens.input += usage.input_tokens || usage.prompt_tokens || 0;
   session.tokens.output += usage.output_tokens || usage.completion_tokens || 0;
-  // Anthropic: cache_read_input_tokens. OpenAI: prompt_tokens_details.cached_tokens
-  session.tokens.cacheRead += usage.cache_read_input_tokens || usage.prompt_tokens_details?.cached_tokens || 0;
+  // Cache read: Anthropic (cache_read_input_tokens), OpenAI/xAI (prompt_tokens_details.cached_tokens), DeepSeek (prompt_cache_hit_tokens)
+  session.tokens.cacheRead += usage.cache_read_input_tokens || usage.prompt_tokens_details?.cached_tokens || usage.prompt_cache_hit_tokens || 0;
   session.tokens.cacheWrite += usage.cache_creation_input_tokens || 0;
   session.tokens.calls += 1;
 }

@@ -1,7 +1,8 @@
-# Prompt Cache Analysis - ArenAI
+# ADR-002: Prompt Caching
 
 **Date** : 14 mars 2026
-**Contexte** : Investigation du prompt caching par provider dans ArenAI
+**Status** : Accepted
+**Contexte** : Investigation et implémentation du prompt caching par provider dans ArenAI
 
 ## Le problème
 
@@ -130,6 +131,34 @@ Tous les tests ont été réalisés le 14 mars 2026 avec un token OAuth.
 5. **Opus 4.6 - prompt enrichi (~1500 tokens)** : toujours 0% car contexte max = 2710, sous le seuil ❌
 6. **Reconstitution des vrais volumes Bruno** : contexte ne dépasse 4096 qu'au call 12/12
 
+## Implémentation dans ArenAI
+
+### Anthropic (llm-client.js)
+- `cache_control: { type: 'ephemeral' }` au top-level du request dans `callAnthropicSession`
+- Fonctionne automatiquement pour tous les modèles Claude, sous réserve de dépasser le seuil minimum
+- Pas besoin de header beta supplémentaire (GA depuis fin 2024)
+
+### OpenAI / GPT (llm-client.js)
+- Cache automatique, aucune configuration nécessaire
+- Tracking via `usage.prompt_tokens_details.cached_tokens`
+
+### xAI / Grok (llm-client.js)
+- Cache automatique par prefix matching
+- Header `x-grok-conv-id` ajouté dans `callOpenAISession` pour améliorer le cache hit rate en routant les appels d'un même joueur vers le même cluster
+- Valeur = `gameId:playerKey` (stable entre les appels d'un même joueur)
+
+### DeepSeek (futur)
+- Cache automatique, seuil très bas (64 tokens)
+- Tracking préparé via `usage.prompt_cache_hit_tokens`
+- Provider pas encore ajouté dans ArenAI
+
+### Google / Gemini
+- Le context caching Gemini est fondamentalement différent : objet persistant côté serveur avec TTL configurable
+- Pas de caching automatique via l'endpoint OpenAI-compatible
+- Implémentation hors scope pour le moment (nécessiterait l'API native Gemini)
+
 ## Conclusion
 
 Le prompt caching Opus 4.6 **fonctionne** techniquement, mais le seuil de 4 096 tokens est trop élevé pour les conversations Two Rooms (system prompt court + messages concis). Il n'y a pas de bug dans le code ArenAI : `cache_control: { type: 'ephemeral' }` au top-level est la bonne approche (documentée par Anthropic).
+
+Les implémentations de cache sont en place pour tous les providers supportés. L'amélioration principale est le header `x-grok-conv-id` pour xAI qui améliore le cache hit rate.

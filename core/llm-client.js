@@ -121,9 +121,12 @@ export function clearTokenUsage(gameId) {
 function trackTokens(gameId, usage) {
   const current = gameTokens.get(gameId) || { input: 0, output: 0, calls: 0, cacheRead: 0, cacheWrite: 0, totalSent: 0 };
   const inputTokens = usage.input_tokens || usage.prompt_tokens || 0;
-  // Anthropic: cache_read_input_tokens / cache_creation_input_tokens
-  // OpenAI: prompt_tokens_details.cached_tokens (no write cost)
-  const cacheRead = usage.cache_read_input_tokens || usage.prompt_tokens_details?.cached_tokens || 0;
+  // Cache read tokens by provider:
+  // - Anthropic: cache_read_input_tokens
+  // - OpenAI/xAI: prompt_tokens_details.cached_tokens
+  // - DeepSeek: prompt_cache_hit_tokens
+  const cacheRead = usage.cache_read_input_tokens || usage.prompt_tokens_details?.cached_tokens || usage.prompt_cache_hit_tokens || 0;
+  // Cache write tokens (Anthropic only, other providers don't charge extra for writes)
   const cacheWrite = usage.cache_creation_input_tokens || 0;
   current.input += inputTokens;
   current.output += usage.output_tokens || usage.completion_tokens || 0;
@@ -161,12 +164,14 @@ async function callAnthropicSession({ model, systemPrompt, messages, maxTokens, 
   if (!apiKey) throw new FatalLLMError('No Anthropic API key configured. Add one in Settings.');
   const client = getAnthropicClient(apiKey);
 
-  // Use top-level automatic caching (Anthropic's recommended approach for multi-turn).
-  // The system auto-places a cache breakpoint on the last cacheable block.
-  // On next call, everything before it is read from cache.
-  // Min threshold: 1024 tokens (Sonnet/Opus), 2048 tokens (Haiku).
-  // Top-level automatic caching: Anthropic places the cache breakpoint on the last cacheable block.
-  // Cache activates once total content exceeds threshold (2048 tokens for Sonnet 4.6, 1024 for Opus).
+  // Top-level automatic caching (Anthropic's recommended approach for multi-turn).
+  // Anthropic auto-places a cache breakpoint on the last cacheable block.
+  // Cache activates once total content exceeds minimum threshold:
+  //   - 4096 tokens: Opus 4.6, Opus 4.5, Haiku 4.5
+  //   - 2048 tokens: Sonnet 4.6
+  //   - 1024 tokens: Sonnet 4.5, Opus 4.1, Opus 4, Sonnet 4
+  // Cache TTL: 5 minutes. Reads cost 90% less, writes cost 25% more.
+  // See docs/prompt-cache-analysis.md for detailed analysis.
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens,
@@ -183,18 +188,26 @@ async function callAnthropicSession({ model, systemPrompt, messages, maxTokens, 
 
 // --- OpenAI-compatible session call (multi-turn) ---
 
-async function callOpenAISession({ provider, model, systemPrompt, messages, maxTokens }) {
+async function callOpenAISession({ provider, model, systemPrompt, messages, maxTokens, convId }) {
   const apiKey = getApiKey(provider);
   if (!apiKey) throw new FatalLLMError(`No ${provider} API key configured. Add one in Settings.`);
   const baseUrl = getBaseUrl(provider);
   const tokenParam = provider === 'openai' ? 'max_completion_tokens' : 'max_tokens';
 
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+
+  // xAI: use x-grok-conv-id header to improve cache hit rate by routing
+  // consecutive calls for the same player to the same server cluster.
+  if (provider === 'xai' && convId) {
+    headers['x-grok-conv-id'] = convId;
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model,
       [tokenParam]: maxTokens,
@@ -286,7 +299,9 @@ export async function askLLMSession({
       if (provider === 'anthropic') {
         result = await callAnthropicSession({ model, systemPrompt: session.systemPrompt, messages, maxTokens, playerName });
       } else {
-        result = await callOpenAISession({ provider, model, systemPrompt: session.systemPrompt, messages, maxTokens });
+        // For xAI: use gameId+playerKey as stable conversation ID for cache routing
+        const convId = `${gameId}:${playerKey || playerName}`;
+        result = await callOpenAISession({ provider, model, systemPrompt: session.systemPrompt, messages, maxTokens, convId });
       }
 
       // Record assistant response and tokens in session
