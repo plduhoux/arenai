@@ -128,8 +128,8 @@ async function runRoomDiscussion(game, room, turn, onEvent, checkPause) {
     const player = game.players[playerIndex];
 
     if (result.thought) {
-      game.log.push({ type: 'thought', player: playerIndex, playerName: player.name, message: result.thought });
-      onEvent({ type: 'thought', player: player.name, message: result.thought });
+      game.log.push({ type: 'thought', round: game.round, room, player: playerIndex, playerName: player.name, message: result.thought });
+      onEvent({ type: 'thought', player: player.name, message: result.thought, room });
     }
     if (result.message && result.message !== 'PASS') {
       game.log.push({
@@ -148,8 +148,14 @@ async function runRoomCardSharing(game, room, onEvent) {
 
   for (const playerIndex of roomPlayers) {
     const result = await prompts.getCardShare(game, playerIndex);
+    const player = game.players[playerIndex];
+
+    if (result.thought) {
+      game.log.push({ type: 'thought', round: game.round, room, player: playerIndex, playerName: player.name, message: result.thought });
+      onEvent({ type: 'thought', player: player.name, message: result.thought, room });
+    }
+
     if (result.share && result.target !== null) {
-      const player = game.players[playerIndex];
       const targetPlayer = game.players[result.target];
       if (targetPlayer && targetPlayer.room === room) {
         engine.addShare(game, playerIndex, result.target, result.shareType || 'color');

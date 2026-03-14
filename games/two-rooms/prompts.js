@@ -246,8 +246,10 @@ SHARE_TYPE: color/card`
 
   return ask(game, playerIndex, prompt,
     (text) => {
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\n(?:SHARE|$))/is);
+      const thought = thoughtMatch?.[1]?.trim() || null;
       const shareMatch = text.match(/SHARE:\s*(yes|no)/i);
-      if (!shareMatch || shareMatch[1].toLowerCase() === 'no') return { share: false };
+      if (!shareMatch || shareMatch[1].toLowerCase() === 'no') return { share: false, thought };
       const targetMatch = text.match(/TARGET:\s*(\d+)/i);
       const typeMatch = text.match(/SHARE_TYPE:\s*(card|color)/i);
       const eligible = engine.getPlayerIndicesInRoom(game, room).filter(i => i !== playerIndex);
@@ -257,6 +259,7 @@ SHARE_TYPE: color/card`
         share: true,
         target,
         shareType: typeMatch ? typeMatch[1].toLowerCase() : 'color',
+        thought,
       };
     },
   );
