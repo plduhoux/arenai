@@ -167,9 +167,9 @@ async function callGeminiSession({ model, systemPrompt, messages, maxTokens }) {
     config: {
       maxOutputTokens: maxTokens,
       systemInstruction: systemPrompt,
-      // Disable thinking mode for game responses (concise outputs, no reasoning overhead).
-      // Gemini 2.5 models have thinking enabled by default which causes text=undefined.
-      thinkingConfig: { thinkingBudget: 0 },
+      // Gemini 2.5 Pro requires thinking mode (min budget 1024).
+      // Flash can disable it (budget 0). Set low budget for Pro to minimize overhead.
+      thinkingConfig: { thinkingBudget: model.includes('pro') ? 1024 : 0 },
     },
   });
 
