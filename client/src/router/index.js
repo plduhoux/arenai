@@ -28,6 +28,11 @@ const routes = [
     component: () => import('../views/EloView.vue'),
   },
   {
+    path: '/tokens',
+    name: 'tokens',
+    component: () => import('../views/TokenStatsView.vue'),
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),

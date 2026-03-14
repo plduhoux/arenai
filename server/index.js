@@ -13,6 +13,7 @@ import { runGame, pauseGame, resumeGame, stopGame, listRunningGames } from '../c
 import { getTokenUsage, setKeyLookup } from '../core/llm-client.js';
 import { getGameSessions } from '../core/session-manager.js';
 import * as elo from './elo.js';
+import { getTokenStats, getTokenGameTypes } from './token-stats.js';
 
 // Wire DB key lookup into LLM client
 setKeyLookup((providerId) => db.getProviderWithKey(providerId));
@@ -53,6 +54,16 @@ api.get('/gametypes', (req, res) => {
 api.get('/elo', (req, res) => res.json(elo.getEloRankings()));
 api.get('/elo/:model', (req, res) => res.json(elo.getEloHistory(decodeURIComponent(req.params.model))));
 api.get('/stats', (req, res) => res.json(db.getStats(req.query.gameType)));
+
+api.get('/token-stats', (req, res) => {
+  const gameTypes = getTokenGameTypes();
+  const all = getTokenStats();
+  const byGame = {};
+  for (const gt of gameTypes) {
+    byGame[gt] = getTokenStats(gt);
+  }
+  res.json({ ...all, byGame, gameTypes });
+});
 
 api.get('/status', (req, res) => {
   const running = listRunningGames();

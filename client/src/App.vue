@@ -7,6 +7,7 @@
         <router-link to="/new" active-class="active">New Game</router-link>
         <router-link to="/stats" active-class="active">Stats</router-link>
         <router-link to="/elo" active-class="active">ELO</router-link>
+        <router-link to="/tokens" active-class="active">Tokens</router-link>
         <router-link to="/settings" active-class="active">Settings</router-link>
       </div>
     </nav>
