@@ -30,7 +30,7 @@ function initSchema() {
   try { db.exec(`ALTER TABLE games ADD COLUMN model_evil TEXT`); } catch {}
   // Migrate old data
   try { db.exec(`UPDATE games SET model_good = model_liberal, model_evil = model_fascist WHERE model_good IS NULL AND model_liberal IS NOT NULL`); } catch {}
-  try { db.exec(`ALTER TABLE games ADD COLUMN game_type TEXT DEFAULT 'secret-hitler'`); } catch {}
+  try { db.exec(`ALTER TABLE games ADD COLUMN game_type TEXT DEFAULT 'secret-dictator'`); } catch {}
 
   // Provider & model configuration
   db.exec(`
@@ -214,7 +214,7 @@ export function saveGame(game) {
 
   upsert.run({
     id: game.id,
-    gameType: game.gameType || 'secret-hitler',
+    gameType: game.gameType || 'secret-dictator',
     model: game.model,
     modelGood: libPlayer?.model || game.model,
     modelEvil: fasPlayer?.model || game.model,

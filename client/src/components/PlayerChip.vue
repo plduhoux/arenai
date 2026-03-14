@@ -3,7 +3,7 @@
     class="player-chip"
     :class="[
       player.party,
-      { hitler: player.role === 'hitler', dead: !player.alive },
+      { dictator: player.role === 'dictator', dead: !player.alive },
     ]"
     :title="player.model || ''"
   >
@@ -26,7 +26,7 @@ const props = defineProps({
 })
 
 const iconClass = computed(() => {
-  if (props.player.role === 'hitler') return 'icon-hitler'
+  if (props.player.role === 'dictator') return 'icon-dictator'
   return `icon-${props.player.party}`
 })
 </script>

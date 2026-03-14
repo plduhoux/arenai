@@ -9,8 +9,8 @@
         <span class="status-label">Round</span>
         <span class="status-value">{{ state.round }}</span>
       </div>
-      <!-- Secret Hitler stats -->
-      <template v-if="state.gameType === 'secret-hitler' || (!state.gameType && state.liberalPolicies !== undefined)">
+      <!-- Secret Dictator stats -->
+      <template v-if="state.gameType === 'secret-dictator' || (!state.gameType && state.liberalPolicies !== undefined)">
         <div class="status-item">
           <span class="status-label">Liberal</span>
           <span class="status-value liberal">{{ state.liberalPolicies }}/{{ state.liberalTarget || 5 }}</span>
@@ -138,7 +138,7 @@ const winnerLabel = computed(() =>
 )
 
 const FACTION_LABELS = {
-  'secret-hitler': { good: 'Liberal', evil: 'Fascist' },
+  'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
 }
@@ -146,8 +146,8 @@ const FACTION_LABELS = {
 const matchup = computed(() => {
   const s = props.state
   if (!s.players?.length && !s.goodModel) return null
-  const type = s.gameType || 'secret-hitler'
-  const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-hitler']
+  const type = s.gameType || 'secret-dictator'
+  const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-dictator']
 
   let goodModel = s.goodModel
   let evilModel = s.evilModel

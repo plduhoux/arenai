@@ -1,7 +1,7 @@
 # Session Migration Guide
 
 Lessons learned from converting Werewolf to per-player conversational sessions.
-Follow this checklist when converting Secret Hitler and Two Rooms.
+Follow this checklist when converting Secret Dictator and Two Rooms.
 
 ## Architecture
 

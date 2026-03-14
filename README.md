@@ -2,7 +2,7 @@
 
 A platform where LLM models play social deduction board games against each other. No coaching, no strategic hints : only game rules. Watch them lie, accuse, cooperate, betray, and reveal their social intelligence (or lack thereof) in real-time.
 
-Three games are implemented : **Secret Hitler**, **Werewolf** (Loup-Garou de Thiercelieux), and **Two Rooms and a Boom**. Each tests different facets of social cognition : deception, trust-building, hidden information management, coalition formation, and theory of mind.
+Three games are implemented : **Secret Dictator**, **Werewolf** (Loup-Garou de Thiercelieux), and **Two Rooms and a Boom**. Each tests different facets of social cognition : deception, trust-building, hidden information management, coalition formation, and theory of mind.
 
 ## What We're Measuring
 
@@ -11,7 +11,7 @@ This is a benchmark, not a tutorial. LLMs receive only the game rules and their 
 - **Deception capacity** : Can a model lie convincingly when its role requires it? Or does it default to honesty/vagueness, revealing itself through omission?
 - **Theory of mind** : Can a model reason about what other players know, believe, and suspect? Can it predict reactions and adjust?
 - **Context compartmentalization** : When a model has private information (e.g., wolf chat), can it keep it out of public statements? Or does the context window bleed through?
-- **Strategic inference** : Can a model derive optimal play from rules alone? For instance, understanding that verbal claims are free in Two Rooms, or that voting patterns reveal alliances in Secret Hitler.
+- **Strategic inference** : Can a model derive optimal play from rules alone? For instance, understanding that verbal claims are free in Two Rooms, or that voting patterns reveal alliances in Secret Dictator.
 - **Persuasion and social influence** : Can a model change other players' votes through argumentation? Measured by comparing pre-discussion intentions with actual votes.
 - **Coalition detection** : Can a model identify coordinated behavior among opponents?
 
@@ -43,7 +43,7 @@ The brutal transition from private context (wolf chat) to public context (day di
 
 ## Games
 
-### Secret Hitler
+### Secret Dictator
 
 5-10 players. Two teams : Liberals and Fascists (including a hidden Dictator).
 
@@ -116,7 +116,7 @@ core/
   llm-client.js      Anthropic SDK, askLLM(), token tracking, retry, prompt caching
 
 games/
-  secret-hitler/     Engine (rules, state machine), prompts, plugin interface
+  secret-dictator/     Engine (rules, state machine), prompts, plugin interface
   werewolf/          Engine, prompts, plugin interface
   two-rooms/         Engine, prompts, plugin interface
 
@@ -140,7 +140,7 @@ public/              Built frontend (vite build output)
 Each game module exports :
 
 ```js
-id            // 'secret-hitler' | 'werewolf' | 'two-rooms'
+id            // 'secret-dictator' | 'werewolf' | 'two-rooms'
 name          // Display name
 description   // Short description
 defaultConfig // { playerCount, names, model, ... }
@@ -200,12 +200,12 @@ Anthropic accepts both standard API keys (`sk-ant-api03-*`) and OAuth tokens. Ot
 ### Game Configuration
 
 From the New Game screen:
-- **Game type**: Secret Hitler, Werewolf, Two Rooms and a Boom
+- **Game type**: Secret Dictator, Werewolf, Two Rooms and a Boom
 - **Player count**: 5-10 (varies by game)
 - **Model**: per-faction model selection (any configured provider)
 - **Discussion rounds**: 1 (fast), 2 (default), 3 (thorough)
 - **Enable thoughts**: private reasoning before public statements
-- **Terminology**: neutral (Dictator), original (Hitler), fantasy
+- **Terminology**: neutral (Dictator), original (Dictator), fantasy
 
 ## Example Games
 
@@ -240,4 +240,4 @@ Node.js (v25+), Express 5, SQLite (better-sqlite3), Anthropic SDK, Vue 3, Vite
 ## Inspiration
 
 - [Foaster.ai Werewolf Bench](https://werewolf.foaster.ai/) : Werewolf benchmark for LLMs (GPT-5, Gemini, Grok). Their setup inspired our Mayor election, wolf private chat, and discussion round mechanics. Their code is not public.
-- The real board games : Secret Hitler (Goat Wolf & Cabbage), Les Loups-Garous de Thiercelieux (Pelissier/des Pallieres), Two Rooms and a Boom (Tuesday Knight Games).
+- The real board games : Secret Dictator (Goat Wolf & Cabbage), Les Loups-Garous de Thiercelieux (Pelissier/des Pallieres), Two Rooms and a Boom (Tuesday Knight Games).

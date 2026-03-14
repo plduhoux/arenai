@@ -1,5 +1,5 @@
 /**
- * Secret Hitler - Game Plugin
+ * Secret Dictator - Game Plugin
  *
  * Exports the standard game plugin interface:
  * - id, name, description
@@ -15,15 +15,15 @@ import * as engine from './engine.js';
 import * as prompts from './prompts.js';
 
 
-export const id = 'secret-hitler';
-export const name = 'Secret Hitler';
+export const id = 'secret-dictator';
+export const name = 'Secret Dictator';
 export const description = 'Social deduction game where Liberal and Fascist factions compete through legislation and deception.';
 
 export const defaultConfig = {
   playerCount: 5,
   names: ['Ada', 'Blaise', 'Claude', 'Dijkstra', 'Euler', 'Turing', 'Lovelace', 'Knuth', 'Hopper', 'Babbage'],
   model: 'claude-sonnet-4-5',
-  terms: { liberal: 'Liberal', fascist: 'Fascist', hitler: 'Dictator' },
+  terms: { liberal: 'Liberal', fascist: 'Fascist', dictator: 'Dictator' },
   enableThoughts: false,
   winPolicies: { liberal: 5, fascist: 6 }, // standard rules
 };
@@ -41,7 +41,7 @@ export function setup(options = {}) {
     model,
     modelLiberal: options.modelGood || options.modelLiberal,
     modelFascist: options.modelEvil || options.modelFascist,
-    modelHitler: options.modelEvil || options.modelHitler,
+    modelDictator: options.modelEvil || options.modelDictator,
     terms,
     enableThoughts,
     winPolicies,
@@ -213,8 +213,8 @@ async function phaseVoting(game, { onEvent }) {
   const lastElection = game.log.findLast(e => e.type === 'election_result');
 
   if (lastElection?.passed) {
-    // Check Hitler chancellor win condition
-    if (game.winner && game.winReason === 'hitler_elected') {
+    // Check Dictator chancellor win condition
+    if (game.winner && game.winReason === 'dictator_elected') {
       narrate(onEvent, `The Dictator was elected Chancellor with 3+ fascist policies in play. Fascist victory!`);
     } else {
       narrate(onEvent, `Government elected. The President now draws 3 policy cards, discards 1, and passes 2 to the Chancellor who will enact 1.`);

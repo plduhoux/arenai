@@ -31,7 +31,7 @@ import { computed } from 'vue'
 const props = defineProps({
   events: { type: Array, required: true },
   currentRound: { type: Number, default: 0 },
-  gameType: { type: String, default: 'secret-hitler' },
+  gameType: { type: String, default: 'secret-dictator' },
 })
 
 function scrollToRound(round) {
@@ -48,7 +48,7 @@ const rounds = computed(() => {
     if (!map.has(r)) map.set(r, { round: r, info: '', outcome: '', detail: '' })
     const entry = map.get(r)
 
-    // Secret Hitler
+    // Secret Dictator
     if (e.type === 'round_start') entry.info = `${e.president || ''} / ${e.chancellor || '?'}`
     if (e.type === 'nomination' && !entry.info) entry.info = e.chancellor || ''
     if (e.type === 'election_result' && !e.passed) entry.outcome = 'rejected'

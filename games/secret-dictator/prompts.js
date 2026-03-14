@@ -1,5 +1,5 @@
 /**
- * Secret Hitler - LLM Prompts
+ * Secret Dictator - LLM Prompts
  * Per-player conversational sessions with delta events.
  */
 
@@ -101,7 +101,7 @@ function formatNewEvents(events, game) {
         lines.push(`${e.playerName}: "${e.message}"`);
         break;
       case 'power_kill':
-        lines.push(`President executed ${e.targetName}!${e.wasHitler ? ` IT WAS THE ${terms.hitler.toUpperCase()}!` : ''}`);
+        lines.push(`President executed ${e.targetName}!${e.wasDictator ? ` IT WAS THE ${terms.dictator.toUpperCase()}!` : ''}`);
         break;
       case 'power_investigate':
         lines.push(`President investigated ${e.targetName}. Claimed: ${e.claim || 'unknown'}.`);
@@ -132,7 +132,7 @@ function formatNewEvents(events, game) {
         lines.push(`President REJECTED the veto. Chancellor must play a card.`);
         break;
       case 'player_killed':
-        lines.push(`${e.playerName} has been executed.${e.wasHitler ? ` They were the ${terms.hitler}!` : ''}`);
+        lines.push(`${e.playerName} has been executed.${e.wasDictator ? ` They were the ${terms.dictator}!` : ''}`);
         break;
     }
   }
@@ -146,32 +146,32 @@ function buildSystemPrompt(game, playerIndex) {
 
   let roleInfo = '';
   if (player.role === 'liberal') {
-    roleInfo = `You are a ${terms.liberal}. You don't know anyone else's role. Your goal is to enact ${game.winPolicies?.liberal || 5} ${terms.liberal} policies or find and kill the ${terms.hitler}.`;
+    roleInfo = `You are a ${terms.liberal}. You don't know anyone else's role. Your goal is to enact ${game.winPolicies?.liberal || 5} ${terms.liberal} policies or find and kill the ${terms.dictator}.`;
   } else if (player.role === 'fascist') {
     const teammates = game.players
       .filter((p, i) => i !== playerIndex && p.party === 'fascist')
-      .map(p => `${p.name} (${p.role === 'hitler' ? terms.hitler : terms.fascist})`)
+      .map(p => `${p.name} (${p.role === 'dictator' ? terms.dictator : terms.fascist})`)
       .join(', ');
-    roleInfo = `You are a ${terms.fascist}. Your teammates: ${teammates}. Your goal is to enact ${game.winPolicies?.fascist || 6} ${terms.fascist} policies or get the ${terms.hitler} elected Chancellor after 3 ${terms.fascist} policies are enacted. Help the ${terms.hitler} but don't be obvious about it. Lie, deceive, and manipulate.`;
+    roleInfo = `You are a ${terms.fascist}. Your teammates: ${teammates}. Your goal is to enact ${game.winPolicies?.fascist || 6} ${terms.fascist} policies or get the ${terms.dictator} elected Chancellor after 3 ${terms.fascist} policies are enacted. Help the ${terms.dictator} but don't be obvious about it. Lie, deceive, and manipulate.`;
   } else {
-    // Hitler
+    // Dictator
     if (game.players.length <= 6) {
       const fascist = game.players.find((p, i) => i !== playerIndex && p.role === 'fascist');
-      roleInfo = `You are the ${terms.hitler}. Your ${terms.fascist} teammate is ${fascist.name}. Your goal: stay hidden, appear ${terms.liberal.toLowerCase()}, and get elected Chancellor after 3 ${terms.fascist} policies. You win if ${terms.fascist.toLowerCase()}s enact 6 policies too. Be careful: if you get killed, your team loses.`;
+      roleInfo = `You are the ${terms.dictator}. Your ${terms.fascist} teammate is ${fascist.name}. Your goal: stay hidden, appear ${terms.liberal.toLowerCase()}, and get elected Chancellor after 3 ${terms.fascist} policies. You win if ${terms.fascist.toLowerCase()}s enact 6 policies too. Be careful: if you get killed, your team loses.`;
     } else {
-      roleInfo = `You are the ${terms.hitler}. You do NOT know who the other ${terms.fascist.toLowerCase()}s are (they know you though). Your goal: appear as ${terms.liberal.toLowerCase()} as possible, stay alive, and get elected Chancellor after 3 ${terms.fascist} policies. Be careful: if you get killed, your team loses.`;
+      roleInfo = `You are the ${terms.dictator}. You do NOT know who the other ${terms.fascist.toLowerCase()}s are (they know you though). Your goal: appear as ${terms.liberal.toLowerCase()} as possible, stay alive, and get elected Chancellor after 3 ${terms.fascist} policies. Be careful: if you get killed, your team loses.`;
     }
   }
 
   return `You are ${player.name}, playing a social deduction board game.
 
 GAME RULES SUMMARY:
-- Players are secretly ${terms.liberal}s or ${terms.fascist}s. One ${terms.fascist} is the ${terms.hitler}.
+- Players are secretly ${terms.liberal}s or ${terms.fascist}s. One ${terms.fascist} is the ${terms.dictator}.
 - Each round: a President nominates a Chancellor, everyone votes.
 - If elected, President draws 3 policy cards, discards 1. Chancellor gets 2, plays 1.
 - Policy deck has 11 ${terms.fascist} and 6 ${terms.liberal} cards.
-- ${terms.liberal}s win: ${game.winPolicies?.liberal || 5} ${terms.liberal} policies OR killing the ${terms.hitler}.
-- ${terms.fascist}s win: ${game.winPolicies?.fascist || 6} ${terms.fascist} policies OR electing the ${terms.hitler} as Chancellor after 3+ ${terms.fascist} policies.
+- ${terms.liberal}s win: ${game.winPolicies?.liberal || 5} ${terms.liberal} policies OR killing the ${terms.dictator}.
+- ${terms.fascist}s win: ${game.winPolicies?.fascist || 6} ${terms.fascist} policies OR electing the ${terms.dictator} as Chancellor after 3+ ${terms.fascist} policies.
 - After 3 failed elections in a row, top policy auto-enacted.
 - ${terms.fascist} policies may grant the President powers (investigate, peek, special election, execute).
 
@@ -436,7 +436,7 @@ export async function choosePowerTarget(game, power, eligibleIndices) {
       instruction = `You must choose the NEXT PRESIDENT (special election). Pick someone you trust (or want to manipulate).`;
       break;
     case 'kill':
-      instruction = `You must EXECUTE one player. They are permanently eliminated. If you kill the ${terms.hitler}, ${terms.liberal.toLowerCase()}s win.`;
+      instruction = `You must EXECUTE one player. They are permanently eliminated. If you kill the ${terms.dictator}, ${terms.liberal.toLowerCase()}s win.`;
       break;
     case 'peek':
       return { targetIndex: null };

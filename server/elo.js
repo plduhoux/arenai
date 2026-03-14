@@ -15,7 +15,7 @@ const DEFAULT_ELO = 1500;
 
 // Map game-specific roles to generic sides
 const GOOD_ROLES = ['liberal', 'villager', 'seer', 'witch', 'president', 'member:blue'];
-const EVIL_ROLES = ['fascist', 'hitler', 'werewolf', 'bomber', 'member:red'];
+const EVIL_ROLES = ['fascist', 'dictator', 'werewolf', 'bomber', 'member:red'];
 
 function getSide(player) {
   if (player.party === 'liberal' || player.party === 'villager' || player.team === 'blue') return 'good';

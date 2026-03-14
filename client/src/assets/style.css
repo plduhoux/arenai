@@ -192,7 +192,7 @@ h3 { font-size: 1.1rem; }
 }
 .player-chip.liberal { border-left: 3px solid var(--liberal); }
 .player-chip.fascist { border-left: 3px solid var(--fascist); }
-.player-chip.hitler { border-left: 3px solid var(--danger); background: rgba(239,68,68,0.1); }
+.player-chip.dictator { border-left: 3px solid var(--danger); background: rgba(239,68,68,0.1); }
 .player-chip.dead { opacity: 0.4; text-decoration: line-through; }
 .chip-model { color: var(--text2); margin-left: 0.25rem; }
 .badge-dead {
@@ -208,7 +208,7 @@ h3 { font-size: 1.1rem; }
 .icon { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 .icon-liberal { background: var(--liberal); }
 .icon-fascist { background: var(--fascist); }
-.icon-hitler { background: var(--danger); box-shadow: 0 0 4px var(--danger); }
+.icon-dictator { background: var(--danger); box-shadow: 0 0 4px var(--danger); }
 
 /* Policy Tracker */
 .policy-tracker { display: flex; flex-direction: column; gap: 0.4rem; }

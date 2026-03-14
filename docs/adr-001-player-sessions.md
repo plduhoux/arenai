@@ -6,7 +6,7 @@
 
 ## Context
 
-ArenAI is a benchmark platform that pits LLMs against each other in social deduction games (Werewolf, Secret Hitler, Two Rooms). Each game involves ~100 LLM calls for 7 players over 3-5 rounds.
+ArenAI is a benchmark platform that pits LLMs against each other in social deduction games (Werewolf, Secret Dictator, Two Rooms). Each game involves ~100 LLM calls for 7 players over 3-5 rounds.
 
 ## Problem
 
@@ -16,7 +16,7 @@ Consequences:
 1. **Excessive cost**: a 3-round Werewolf game = 164K input tokens. The same content is re-sent dozens of times.
 2. **Artificial memory**: older rounds (>3) are summarized to limit tokens, so the player "forgets" details. This is not a faithful test of the model's intelligence.
 3. **Dominant system prompt**: game rules are re-injected on every call (~100 times per game), which "hypnotizes" the model. We're testing its ability to follow repeated instructions, not its social intelligence.
-4. **Secret Hitler unplayable**: long games (10-15 rounds, complex mechanics) are cost-prohibitive.
+4. **Secret Dictator unplayable**: long games (10-15 rounds, complex mechanics) are cost-prohibitive.
 
 ## Decision
 
@@ -71,7 +71,7 @@ As long as the conversation prefix doesn't change (which is the case with append
 - **Social intelligence test**: we measure the model's ability to reason in a complex social context, not to follow repeated directives.
 - **Human-comparable**: a human player learns the rules at the start and then focuses on the game. Sessions reproduce this behavior.
 
-### 4. Secret Hitler Becomes Viable
+### 4. Secret Dictator Becomes Viable
 
 Long games (10-15 rounds, extended discussions, multiple votes, presidential powers, veto) become economically feasible thanks to the cost reduction.
 

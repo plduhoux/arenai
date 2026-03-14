@@ -31,8 +31,8 @@ export function winReasonLabel(reason) {
   const labels = {
     five_liberal_policies: '5 liberal policies enacted',
     six_fascist_policies: '6 fascist policies enacted',
-    hitler_elected: 'Dictator elected Chancellor',
-    hitler_killed: 'Dictator was executed',
+    dictator_elected: 'Dictator elected Chancellor',
+    dictator_killed: 'Dictator was executed',
     max_rounds: 'Maximum rounds reached',
   }
   return labels[reason] || reason

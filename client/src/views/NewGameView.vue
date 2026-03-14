@@ -36,16 +36,16 @@
         </select>
       </div>
 
-      <div class="form-group" v-if="gameType === 'secret-hitler'">
+      <div class="form-group" v-if="gameType === 'secret-dictator'">
         <label>Terminology</label>
         <select v-model="termsKey">
           <option value="neutral">Neutral (Dictator)</option>
-          <option value="original">Original (Hitler)</option>
+          <option value="original">Original (Dictator)</option>
           <option value="fantasy">Fantasy (Shadow Lord)</option>
         </select>
       </div>
 
-      <div class="form-group" v-if="gameType === 'secret-hitler'">
+      <div class="form-group" v-if="gameType === 'secret-dictator'">
         <label>Game Length</label>
         <select v-model="gameLength">
           <option value="short">Short (3L / 4F)</option>
@@ -89,14 +89,14 @@ import { TERMS_PRESETS } from '../utils/constants'
 const router = useRouter()
 
 const GAME_DEFAULTS = {
-  'secret-hitler': { playerCount: 5, enableThoughts: false, discussionRounds: 1 },
+  'secret-dictator': { playerCount: 5, enableThoughts: false, discussionRounds: 1 },
   'werewolf': { playerCount: 7, enableThoughts: true, discussionRounds: 2 },
   'two-rooms': { playerCount: 10, enableThoughts: true, discussionRounds: 1 },
 }
 
 const games = [
   { id: 'werewolf', name: 'Werewolf', icon: '\u{1F43A}', desc: 'Classic social deduction. Villagers vs wolves. Seer, Witch, Mayor.' },
-  { id: 'secret-hitler', name: 'Secret Dictator', icon: '\u{1F3DB}', desc: 'Hidden roles, policy cards, legislative deception. 5-10 players.' },
+  { id: 'secret-dictator', name: 'Secret Dictator', icon: '\u{1F3DB}', desc: 'Hidden roles, policy cards, legislative deception. 5-10 players.' },
   { id: 'two-rooms', name: 'Two Rooms', icon: '\u{1F4A3}', desc: 'Two teams, two rooms, hostage exchanges. Find the President.' },
 ]
 
@@ -162,7 +162,7 @@ async function launchGame() {
         modelGood: modelGood.value,
         modelEvil: modelEvil.value,
         enableThoughts: enableThoughts.value,
-        ...(gameType.value === 'secret-hitler' ? {
+        ...(gameType.value === 'secret-dictator' ? {
           winPolicies: WIN_POLICIES[gameLength.value],
           terms,
         } : {}),

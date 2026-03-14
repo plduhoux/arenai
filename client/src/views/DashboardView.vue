@@ -70,7 +70,7 @@ const loading = ref(true)
 const activeFilter = ref('all')
 
 const FACTION_LABELS = {
-  'secret-hitler': { good: 'Liberal', evil: 'Fascist' },
+  'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
 }
@@ -86,13 +86,13 @@ const WINNER_LABELS = {
 }
 
 const GAME_TYPE_LABELS = {
-  'secret-hitler': 'Secret Hitler',
+  'secret-dictator': 'Secret Dictator',
   'werewolf': 'Werewolf',
   'two-rooms': 'Two Rooms',
 }
 
 function gameTypeLabel(type) {
-  return GAME_TYPE_LABELS[type] || type || 'Secret Hitler'
+  return GAME_TYPE_LABELS[type] || type || 'Secret Dictator'
 }
 
 function winnerClass(g) {
@@ -139,8 +139,8 @@ function factionClass(g, side) {
 }
 
 function factionHtml(g, side) {
-  const type = g.game_type || 'secret-hitler'
-  const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-hitler']
+  const type = g.game_type || 'secret-dictator'
+  const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-dictator']
   const { goodModel, evilModel } = getModels(g)
   const label = side === 'good' ? labels.good : labels.evil
   const model = side === 'good' ? goodModel : evilModel
@@ -150,7 +150,7 @@ function factionHtml(g, side) {
 const gameTypeFilters = computed(() => {
   const counts = { all: games.value.length }
   for (const g of games.value) {
-    const t = g.game_type || 'secret-hitler'
+    const t = g.game_type || 'secret-dictator'
     counts[t] = (counts[t] || 0) + 1
   }
   const filters = [{ value: 'all', label: 'All', count: counts.all }]
@@ -162,7 +162,7 @@ const gameTypeFilters = computed(() => {
 
 const filteredGames = computed(() => {
   if (activeFilter.value === 'all') return games.value
-  return games.value.filter(g => (g.game_type || 'secret-hitler') === activeFilter.value)
+  return games.value.filter(g => (g.game_type || 'secret-dictator') === activeFilter.value)
 })
 
 onMounted(async () => {

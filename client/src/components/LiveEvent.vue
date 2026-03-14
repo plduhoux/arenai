@@ -62,7 +62,7 @@ const content = computed(() => {
         return `<span class="narrator-text">Two Rooms and a Boom with ${count} players: ${names}. Blue Team protects the President. Red Team sends the Bomber. 3 rounds of deception and hostage exchanges.</span>`
       }
       const names = (e.players || []).map(p => pname(p.name)).join(', ')
-      return `<span class="narrator-text">New game of Secret Hitler with ${count} players: ${names}. Roles have been secretly assigned. The fascists know each other and who the Dictator is. The Dictator and Liberals are in the dark. Let the deception begin.</span>`
+      return `<span class="narrator-text">New game of Secret Dictator with ${count} players: ${names}. Roles have been secretly assigned. The fascists know each other and who the Dictator is. The Dictator and Liberals are in the dark. Let the deception begin.</span>`
     }
 
     case 'game_paused':

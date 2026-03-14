@@ -99,7 +99,7 @@ const activeTab = ref('all')
 const gameTypes = ref([])
 
 const GAME_LABELS = {
-  'secret-hitler': { good: 'Liberal', evil: 'Fascist' },
+  'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
 }
@@ -108,7 +108,7 @@ const allTabs = computed(() => {
   const tabs = [{ id: 'all', label: 'All Games' }]
   for (const gt of gameTypes.value) {
     const l = GAME_LABELS[gt] || { good: 'Good', evil: 'Evil' }
-    const name = gt === 'secret-hitler' ? 'Secret Hitler' : gt === 'werewolf' ? 'Werewolf' : gt === 'two-rooms' ? 'Two Rooms' : gt
+    const name = gt === 'secret-dictator' ? 'Secret Dictator' : gt === 'werewolf' ? 'Werewolf' : gt === 'two-rooms' ? 'Two Rooms' : gt
     tabs.push({ id: gt, label: name })
   }
   return tabs

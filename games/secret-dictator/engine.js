@@ -1,16 +1,16 @@
 /**
- * Secret Hitler — Game Engine
+ * Secret Dictator — Game Engine
  * Core game state, rules, and logic.
  */
 
 // Role distribution by player count
 const ROLE_DISTRIBUTION = {
-  5:  { liberals: 3, fascists: 1, hitler: 1 },
-  6:  { liberals: 4, fascists: 1, hitler: 1 },
-  7:  { liberals: 4, fascists: 2, hitler: 1 },
-  8:  { liberals: 5, fascists: 2, hitler: 1 },
-  9:  { liberals: 5, fascists: 3, hitler: 1 },
-  10: { liberals: 6, fascists: 3, hitler: 1 },
+  5:  { liberals: 3, fascists: 1, dictator: 1 },
+  6:  { liberals: 4, fascists: 1, dictator: 1 },
+  7:  { liberals: 4, fascists: 2, dictator: 1 },
+  8:  { liberals: 5, fascists: 2, dictator: 1 },
+  9:  { liberals: 5, fascists: 3, dictator: 1 },
+  10: { liberals: 6, fascists: 3, dictator: 1 },
 };
 
 // Presidential powers by player count bracket
@@ -45,7 +45,7 @@ function shuffle(arr) {
 const DEFAULT_TERMS = {
   liberal: 'Liberal',
   fascist: 'Fascist',
-  hitler: 'Dictator',        // "Hitler" in the original game
+  dictator: 'Dictator',        // "Dictator" in the original game
   liberalPolicy: 'Liberal',
   fascistPolicy: 'Fascist',
 };
@@ -60,19 +60,19 @@ export function createGame(playerNames, options = {}) {
   const roles = shuffle([
     ...Array(dist.liberals).fill('liberal'),
     ...Array(dist.fascists).fill('fascist'),
-    'hitler',
+    'dictator',
   ]);
 
   // Per-faction models: dictator always uses fascist model (same team)
   const models = {
     liberal: options.modelLiberal || options.model || 'claude-sonnet-4-5',
     fascist: options.modelFascist || options.model || 'claude-sonnet-4-5',
-    hitler:  options.modelFascist || options.model || 'claude-sonnet-4-5',
+    dictator:  options.modelFascist || options.model || 'claude-sonnet-4-5',
   };
 
   const players = playerNames.map((name, i) => ({
     name,
-    role: roles[i],        // liberal | fascist | hitler
+    role: roles[i],        // liberal | fascist | dictator
     party: roles[i] === 'liberal' ? 'liberal' : 'fascist',
     model: models[roles[i]],
     alive: true,
@@ -210,12 +210,12 @@ export function resolveElection(game) {
   });
 
   if (passed) {
-    // Check Hitler chancellor win condition
-    if (game.fascistPolicies >= 3 && game.players[game.currentChancellorCandidate].role === 'hitler') {
+    // Check Dictator chancellor win condition
+    if (game.fascistPolicies >= 3 && game.players[game.currentChancellorCandidate].role === 'dictator') {
       game.winner = 'fascist';
-      game.winReason = 'hitler_elected';
+      game.winReason = 'dictator_elected';
       game.phase = 'done';
-      game.log.push({ type: 'game_over', winner: 'fascist', reason: 'Hitler elected Chancellor after 3+ fascist policies' });
+      game.log.push({ type: 'game_over', winner: 'fascist', reason: 'Dictator elected Chancellor after 3+ fascist policies' });
       return game;
     }
 
@@ -440,14 +440,14 @@ export function executePower(game, targetIndex, result) {
         president: game.presidentIndex,
         target: targetIndex,
         targetName: game.players[targetIndex].name,
-        wasHitler: game.players[targetIndex].role === 'hitler',
+        wasDictator: game.players[targetIndex].role === 'dictator',
       });
 
-      if (game.players[targetIndex].role === 'hitler') {
+      if (game.players[targetIndex].role === 'dictator') {
         game.winner = 'liberal';
-        game.winReason = 'hitler_killed';
+        game.winReason = 'dictator_killed';
         game.phase = 'done';
-        game.log.push({ type: 'game_over', winner: 'liberal', reason: 'Hitler was executed' });
+        game.log.push({ type: 'game_over', winner: 'liberal', reason: 'Dictator was executed' });
         return game;
       }
       break;
@@ -554,7 +554,7 @@ export function getPlayerKnowledge(game, playerIndex) {
   };
 
   if (player.role === 'fascist') {
-    // Fascists know each other AND know who Hitler is
+    // Fascists know each other AND know who Dictator is
     game.players.forEach((p, i) => {
       if (i !== playerIndex && p.party === 'fascist') {
         knowledge.knownPlayers[i] = {
@@ -565,8 +565,8 @@ export function getPlayerKnowledge(game, playerIndex) {
     });
   }
 
-  if (player.role === 'hitler' && game.players.length <= 6) {
-    // Hitler knows fascist teammate in 5-6 player games
+  if (player.role === 'dictator' && game.players.length <= 6) {
+    // Dictator knows fascist teammate in 5-6 player games
     game.players.forEach((p, i) => {
       if (i !== playerIndex && p.role === 'fascist') {
         knowledge.knownPlayers[i] = {

@@ -39,7 +39,7 @@ Each pair plays **10 games per game type**. In each game, one model controls the
 - ~230k input + ~30k output per game (estimated)
 - Tests: information compartmentalization (wolf chat leakage), accusation/defense, voting under uncertainty
 
-### Secret Hitler
+### Secret Dictator
 - 5 players, ~8-12 rounds, ~300 API calls/game
 - ~350k input + ~45k output per game (estimated)
 - Longest game type, most complex mechanics
@@ -47,7 +47,7 @@ Each pair plays **10 games per game type**. In each game, one model controls the
 
 ## Configuration per Game
 
-| Setting | Two Rooms | Werewolf | Secret Hitler |
+| Setting | Two Rooms | Werewolf | Secret Dictator |
 |---|---|---|---|
 | Players | 10 | 6 | 5 |
 | Private thoughts | off | on | off |
@@ -63,7 +63,7 @@ Each game has two factions. Each model controls one faction and uses roughly hal
 - Claude Opus 4.6 half: **$0** (free via Max)
 - Full game Two Rooms: **$0.14** when one side is Claude
 
-| Model | Two Rooms | Werewolf (est.) | Secret Hitler (est.) |
+| Model | Two Rooms | Werewolf (est.) | Secret Dictator (est.) |
 |---|---|---|---|
 | Claude Opus 4.6 | $0 | $0 | $0 |
 | GPT-5.4 | $0.14 | $0.35 | $0.55 |
@@ -90,13 +90,13 @@ Cost = half-game cost x 120.
 Breakdown by game type:
 - Two Rooms: ~$48 (fastest, run first to validate setup)
 - Werewolf: ~$56
-- Secret Hitler: ~$66
+- Secret Dictator: ~$66
 
 ## Execution Order
 
 1. **Two Rooms first** (cheapest, fastest): validate multi-provider integration, ELO system, data collection
 2. **Werewolf second**: validate thought mechanics, wolf chat dynamics
-3. **Secret Hitler last**: longest games, most tokens, run once everything is proven
+3. **Secret Dictator last**: longest games, most tokens, run once everything is proven
 
 Within each game type, run Claude pairs first (free) to validate, then expand to paid matchups.
 
@@ -126,7 +126,7 @@ Per game, we store:
 | Deception success | Red claimed Blue and wasn't caught (Two Rooms), wolf survived to endgame (Werewolf) | Two Rooms, Werewolf |
 | Context leakage | Wolf mentions private info publicly (grep wolf chat terms in public discussion) | Werewolf |
 | Theory of mind | Correct accusations, successful misdirection | All |
-| Persuasion impact | Vote changes after discussion (pre vs post) | Werewolf, Secret Hitler |
+| Persuasion impact | Vote changes after discussion (pre vs post) | Werewolf, Secret Dictator |
 | Information discipline | Card shares to enemies vs allies | Two Rooms |
 | Token efficiency | Win rate per token spent | All |
 
@@ -169,7 +169,7 @@ Total budget with reserve: **~$200**
 
 ### Timeline (tentative)
 1. Run Two Rooms benchmark (validate) - 1-2 days
-2. Run Werewolf + Secret Hitler - 3-4 days
+2. Run Werewolf + Secret Dictator - 3-4 days
 3. Analyze results, extract highlights - 1 day
 4. Write article - 1-2 days
 5. Publish code + article

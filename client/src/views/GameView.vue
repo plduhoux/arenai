@@ -155,12 +155,12 @@ const finishedState = computed(() => {
 
   return {
     status: 'finished',
-    gameType: g.game_type || 'secret-hitler',
+    gameType: g.game_type || 'secret-dictator',
     gameId: g.id,
     round: g.rounds || 0,
     winner: g.winner,
     players: g.players || [],
-    // Secret Hitler
+    // Secret Dictator
     liberalPolicies: g.policies_liberal || 0,
     fascistPolicies: g.policies_fascist || 0,
     electionTracker: 0,

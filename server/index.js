@@ -18,12 +18,12 @@ import * as elo from './elo.js';
 setKeyLookup((providerId) => db.getProviderWithKey(providerId));
 
 // Game plugins
-import * as secretHitler from '../games/secret-hitler/index.js';
+import * as secretDictator from '../games/secret-dictator/index.js';
 import * as werewolf from '../games/werewolf/index.js';
 import * as twoRooms from '../games/two-rooms/index.js';
 
 const GAME_PLUGINS = {
-  [secretHitler.id]: secretHitler,
+  [secretDictator.id]: secretDictator,
   [werewolf.id]: werewolf,
   [twoRooms.id]: twoRooms,
 };
@@ -129,7 +129,7 @@ api.get('/games/:id/stream', (req, res) => {
 // Start a new game (returns gameId immediately)
 api.post('/games/run', async (req, res) => {
   const {
-    gameType = 'secret-hitler',
+    gameType = 'secret-dictator',
     playerCount = 7,
     model = 'claude-sonnet-4-5',
     modelGood,
