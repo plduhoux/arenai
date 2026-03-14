@@ -408,6 +408,13 @@ export async function askLLM({
       let result;
       if (provider === 'anthropic') {
         result = await callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playerName });
+      } else if (provider === 'google') {
+        result = await callGeminiSession({
+          model,
+          systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          maxTokens,
+        });
       } else {
         result = await callOpenAICompatible({ provider, model, systemPrompt, userPrompt, maxTokens });
       }
