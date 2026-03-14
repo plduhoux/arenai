@@ -2,7 +2,14 @@
   <div class="dashboard">
     <div class="page-header">
       <h1>Games</h1>
-      <router-link to="/new" class="btn-primary">New Game</router-link>
+      <div class="header-actions">
+        <button
+          v-if="unfinishedCount > 0"
+          class="btn-danger btn-small"
+          @click="cleanupUnfinished"
+        >🗑 Clean up {{ unfinishedCount }} unfinished</button>
+        <router-link to="/new" class="btn-primary">New Game</router-link>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">Loading games...</div>
@@ -31,6 +38,7 @@
             <th>Rounds</th>
             <th>Tokens</th>
             <th>Date</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -53,6 +61,13 @@
             <td class="center">{{ g.rounds || '?' }}</td>
             <td class="tokens-cell">{{ g.tokens_input ? formatTokens(g.tokens_input + g.tokens_output) : '-' }}</td>
             <td class="date-cell">{{ formatDate(g.created_at) }}</td>
+            <td class="action-cell">
+              <button
+                class="btn-delete-small"
+                @click.stop="deleteGame(g)"
+                title="Delete game"
+              >×</button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -165,6 +180,41 @@ const filteredGames = computed(() => {
   return games.value.filter(g => (g.game_type || 'secret-dictator') === activeFilter.value)
 })
 
+const unfinishedCount = computed(() =>
+  games.value.filter(g => g.status !== 'finished').length
+)
+
+async function deleteGame(g) {
+  if (!confirm(`Delete game ${g.id.slice(0, 8)}...?`)) return
+  try {
+    const res = await fetch(`/api/games/${g.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert(err.error || 'Failed to delete')
+      return
+    }
+    games.value = games.value.filter(x => x.id !== g.id)
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+async function cleanupUnfinished() {
+  const count = unfinishedCount.value
+  if (!confirm(`Delete ${count} unfinished game(s)?`)) return
+  try {
+    const res = await fetch('/api/games?status=unfinished', { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert(err.error || 'Failed to clean up')
+      return
+    }
+    games.value = games.value.filter(g => g.status === 'finished')
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
 onMounted(async () => {
   try {
     games.value = await fetchGames()
@@ -252,4 +302,42 @@ onMounted(async () => {
 .winner-evil { background: #5a2727; color: #ff8a8a; }
 .winner-running { background: #4a4a1a; color: #e8e87a; }
 .winner-draw { background: #3a3a3a; color: #aaa; }
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-small {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.btn-delete-small {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.game-row:hover .btn-delete-small {
+  opacity: 0.5;
+}
+
+.btn-delete-small:hover {
+  opacity: 1 !important;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.action-cell {
+  width: 30px;
+  text-align: center;
+}
 </style>

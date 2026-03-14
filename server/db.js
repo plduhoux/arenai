@@ -345,3 +345,22 @@ export function getStats(gameType) {
 
   return { totals, byReason, byModel, gameTypes };
 }
+
+export function deleteGame(id) {
+  const db = getDb();
+  db.prepare('DELETE FROM game_logs WHERE game_id = ?').run(id);
+  const result = db.prepare('DELETE FROM games WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export function deleteUnfinishedGames() {
+  const db = getDb();
+  const unfinished = db.prepare("SELECT id FROM games WHERE status != 'finished'").all();
+  const ids = unfinished.map(r => r.id);
+  if (ids.length === 0) return 0;
+  for (const id of ids) {
+    db.prepare('DELETE FROM game_logs WHERE game_id = ?').run(id);
+  }
+  const result = db.prepare("DELETE FROM games WHERE status != 'finished'").run();
+  return result.changes;
+}

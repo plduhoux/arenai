@@ -284,6 +284,32 @@ api.post('/games/:id/stop', (req, res) => {
   res.json({ ok: true, action: 'stopped' });
 });
 
+// Delete a single game
+api.delete('/games/:id', (req, res) => {
+  // Don't allow deleting running games
+  const running = listRunningGames();
+  if (running.some(g => g.id === req.params.id)) {
+    return res.status(400).json({ error: 'Cannot delete a running game. Stop it first.' });
+  }
+  const deleted = db.deleteGame(req.params.id);
+  if (!deleted) return res.status(404).json({ error: 'Game not found' });
+  res.json({ ok: true, deleted: 1 });
+});
+
+// Delete all unfinished games
+api.delete('/games', (req, res) => {
+  if (req.query.status !== 'unfinished') {
+    return res.status(400).json({ error: 'Use ?status=unfinished to delete unfinished games' });
+  }
+  // Don't delete running games
+  const running = listRunningGames();
+  if (running.length > 0) {
+    return res.status(400).json({ error: `${running.length} game(s) still running. Stop them first.` });
+  }
+  const count = db.deleteUnfinishedGames();
+  res.json({ ok: true, deleted: count });
+});
+
 // Session inspector: get all player sessions for a game
 api.get('/games/:id/sessions', (req, res) => {
   const active = activeGames.get(req.params.id);
