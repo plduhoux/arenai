@@ -159,6 +159,23 @@ Tous les tests ont été réalisés le 14 mars 2026 avec un token OAuth.
 - Tracking via `usageMetadata.cachedContentTokenCount` (mappé sur `cache_read_input_tokens` en interne)
 - Les appels one-shot (`askLLM`) passent toujours par l'endpoint OpenAI-compatible (pas de session)
 
+## Test : mode verbose pour forcer le cache Opus 4.6
+
+**Hypothèse** : en supprimant la contrainte "be CONCISE" et en ajoutant un 3ème tour de discussion, les réponses plus longues feraient atteindre le seuil de 4 096 tokens plus rapidement, activant le cache et réduisant le coût global.
+
+**Résultat de la simulation** :
+
+| Mode | Calls | Tokens total | Cache savings | Coût effectif | Prix (10j, Opus) |
+|------|-------|-------------|---------------|---------------|-------------------|
+| Concis (actuel) | 12 | 28k | 0% (seuil jamais atteint) | 29.5k units | $4.42 |
+| Verbose (3 tours) | 15 | 64.5k | 47% de la version verbose | 34.1k units | $5.12 |
+
+**Conclusion** : la version verbose coûte **16% plus cher** malgré 47% d'économies de cache. Les tokens supplémentaires générés par la verbosité coûtent plus que ce que le cache économise. Le mode concis reste optimal pour le coût.
+
+**Quand le mode verbose serait rentable** : uniquement si la qualité de jeu l'exige (discussions plus riches). Dans ce cas, le cache réduit le surcoût de 47%. Mais comme levier d'optimisation de coûts, c'est contre-productif.
+
+**Décision** : conserver le mode concis ("be CONCISE, 1-2 sentences") et 2 tours de discussion.
+
 ## Conclusion
 
 Le prompt caching Opus 4.6 **fonctionne** techniquement, mais le seuil de 4 096 tokens est trop élevé pour les conversations Two Rooms (system prompt court + messages concis). Il n'y a pas de bug dans le code ArenAI : `cache_control: { type: 'ephemeral' }` au top-level est la bonne approche (documentée par Anthropic).
