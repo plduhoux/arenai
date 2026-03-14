@@ -13,22 +13,26 @@
           />
         </template>
         <!-- Room columns -->
-        <div v-else class="room-columns">
-          <div class="room-col room-col-a">
-            <LiveEvent
-              v-for="(event, i) in group.roomA"
-              :key="`a-${gi}-${i}`"
-              :event="event"
-              :playerRoles="playerRoles"
-            />
-          </div>
-          <div class="room-col room-col-b">
-            <LiveEvent
-              v-for="(event, i) in group.roomB"
-              :key="`b-${gi}-${i}`"
-              :event="event"
-              :playerRoles="playerRoles"
-            />
+        <div v-else class="room-section">
+          <div class="room-columns">
+            <div class="room-col room-col-a">
+              <div class="room-label">Room A</div>
+              <LiveEvent
+                v-for="(event, i) in group.roomA"
+                :key="`a-${gi}-${i}`"
+                :event="event"
+                :playerRoles="playerRoles"
+              />
+            </div>
+            <div class="room-col room-col-b">
+              <div class="room-label">Room B</div>
+              <LiveEvent
+                v-for="(event, i) in group.roomB"
+                :key="`b-${gi}-${i}`"
+                :event="event"
+                :playerRoles="playerRoles"
+              />
+            </div>
           </div>
         </div>
       </template>
@@ -67,24 +71,31 @@ const isTwoRooms = computed(() => props.gameType === 'two-rooms')
 // Events that belong to a specific room
 const ROOM_EVENTS = new Set(['room_header', 'discussion', 'thought', 'share', 'leader_vote', 'leader_elected'])
 
+// Events that force a break in room columns (major phase transitions)
+const BREAK_EVENTS = new Set(['round_start', 'exchange', 'game_over', 'game_start', 'hostage_selected'])
+
 function eventRoom(e) {
   if (!ROOM_EVENTS.has(e.type)) return null
   return e.room || null
 }
 
-// Group events into alternating global / room-split sections
+// Group events into alternating global / room-split sections.
+// Narrator events between discussion turns are absorbed into the room section
+// (displayed as spanning both columns) to avoid breaking the two-column layout.
 const roomGroups = computed(() => {
   const groups = []
   let currentGlobal = []
   let currentRoomA = []
   let currentRoomB = []
+  let currentSpanning = [] // global events within a room section (narrators between turns)
   let inRoomSection = false
 
   function flushRooms() {
-    if (currentRoomA.length || currentRoomB.length) {
-      groups.push({ type: 'rooms', roomA: currentRoomA, roomB: currentRoomB })
+    if (currentRoomA.length || currentRoomB.length || currentSpanning.length) {
+      groups.push({ type: 'rooms', roomA: currentRoomA, roomB: currentRoomB, spanning: currentSpanning })
       currentRoomA = []
       currentRoomB = []
+      currentSpanning = []
     }
     inRoomSection = false
   }
@@ -105,6 +116,10 @@ const roomGroups = computed(() => {
       }
       if (room === 'A') currentRoomA.push(e)
       else currentRoomB.push(e)
+    } else if (inRoomSection && !BREAK_EVENTS.has(e.type)) {
+      // Minor global event within room section (e.g. narrator between turns):
+      // keep it inside the room section as a spanning element
+      currentSpanning.push(e)
     } else {
       if (inRoomSection) flushRooms()
       currentGlobal.push(e)
@@ -161,6 +176,10 @@ watch(
 </script>
 
 <style scoped>
+.room-section {
+  margin: 8px 0;
+}
+
 .room-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -168,7 +187,7 @@ watch(
   background: var(--border);
   border-radius: 4px;
   overflow: hidden;
-  margin: 4px 0;
+  align-items: start;
 }
 
 .room-col {
@@ -183,6 +202,15 @@ watch(
 
 .room-col-b {
   border-left: 3px solid var(--warning);
+}
+
+.room-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 6px 2px;
+  opacity: 0.5;
 }
 
 @media (max-width: 640px) {

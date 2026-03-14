@@ -185,7 +185,7 @@ function ask(game, playerIndex, userPrompt, parseResponse) {
 
 export function getRoomDiscussion(game, playerIndex, turn = 0) {
   const room = game.players[playerIndex].room;
-  const discussionTurns = game.round >= game.maxRounds ? 1 : 2;
+  const discussionTurns = 2;
   const roommates = engine.getPlayersInRoom(game, room)
     .filter(p => p.index !== playerIndex)
     .map(p => `${p.name} (#${p.index})`).join(', ');
@@ -234,15 +234,15 @@ export function getCardShare(game, playerIndex) {
 
   const prompt = first
     ? `CARD SHARING (Room ${room}, Round ${game.round}/${game.maxRounds}).
-You may privately show your card to ONE player in your room. This is verified by the game: you cannot lie when sharing a card. The target will learn your true team (color share) or full role (card share).
+You may privately show your card to ONE player in your room, or choose not to share at all. Sharing is verified by the game: you cannot lie when sharing a card. The target will learn your true team (color share) or full role (card share).
 
 Players here: ${roommates}
 ${knownNames.length ? `You already verified: ${knownNames.join(', ')}` : 'You haven\'t verified anyone yet.'}
 ${thoughtPrompt}
-SHARE: yes/no
+SHARE: no/yes
 TARGET: player number (if yes)
 SHARE_TYPE: color/card`
-    : `Card sharing phase. Players here: ${roommates}${thoughtPrompt}\nSHARE: yes/no\nTARGET: player number\nSHARE_TYPE: color/card`;
+    : `Card sharing phase. Players here: ${roommates}${thoughtPrompt}\nSHARE: no/yes\nTARGET: player number\nSHARE_TYPE: color/card`;
 
   return ask(game, playerIndex, prompt,
     (text) => {
