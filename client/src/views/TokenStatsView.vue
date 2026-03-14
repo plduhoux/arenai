@@ -23,6 +23,10 @@
 
       <!-- Global overview -->
       <div class="totals-bar" v-if="currentData">
+        <div class="total-item total-cost">
+          <span class="total-label">Est. cost</span>
+          <span class="total-value">${{ fmtCost(currentData.totals.cost) }}</span>
+        </div>
         <div class="total-item">
           <span class="total-label">Total tokens</span>
           <span class="total-value">{{ fmt(currentData.totals.total) }}</span>
@@ -53,6 +57,7 @@
               <th class="right">Output</th>
               <th class="right">Cache</th>
               <th class="right">Total</th>
+              <th class="right">Cost</th>
               <th class="right">Avg/game</th>
             </tr>
           </thead>
@@ -64,7 +69,8 @@
               <td class="right">{{ fmt(m.output) }}</td>
               <td class="right">{{ fmt(m.cacheRead) }}</td>
               <td class="right total-col">{{ fmt(m.total) }}</td>
-              <td class="right avg-col">{{ fmt(m.avgTotal) }}</td>
+              <td class="right cost-col">${{ fmtCost(m.cost) }}</td>
+              <td class="right avg-col">{{ fmt(m.avgTotal) }} <span class="avg-cost">${{ fmtCost(m.avgCost) }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -81,6 +87,7 @@
               <th class="right">Input</th>
               <th class="right">Output</th>
               <th class="right">Total</th>
+              <th class="right">Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -95,6 +102,7 @@
               <td class="right">{{ fmt(gameInput(g)) }}</td>
               <td class="right">{{ fmt(gameOutput(g)) }}</td>
               <td class="right total-col">{{ fmt(gameInput(g) + gameOutput(g)) }}</td>
+              <td class="right cost-col">${{ fmtCost(gameCost(g)) }}</td>
             </tr>
           </tbody>
         </table>
@@ -121,12 +129,23 @@ function gameTypeLabel(type) {
   return GAME_TYPE_LABELS[type] || type
 }
 
+function fmtCost(n) {
+  if (!n) return '0.00'
+  if (n >= 1) return n.toFixed(2)
+  if (n >= 0.01) return n.toFixed(3)
+  return n.toFixed(4)
+}
+
 function gameInput(g) {
   return Object.values(g.models).reduce((s, m) => s + (m.input || 0), 0)
 }
 
 function gameOutput(g) {
   return Object.values(g.models).reduce((s, m) => s + (m.output || 0), 0)
+}
+
+function gameCost(g) {
+  return Object.values(g.models).reduce((s, m) => s + (m.cost || 0), 0)
 }
 
 const currentData = computed(() => {
@@ -220,6 +239,22 @@ onMounted(async () => {
 
 .token-table .avg-col {
   color: var(--text-secondary);
+}
+
+.token-table .cost-col {
+  color: #e8a43a;
+  font-weight: 500;
+}
+
+.avg-cost {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-left: 0.3rem;
+}
+
+.total-cost .total-value {
+  color: #e8a43a;
+  font-size: 1.3rem;
 }
 
 .game-table .clickable {

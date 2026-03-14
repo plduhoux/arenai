@@ -11,6 +11,34 @@
 
 import { getDb } from './db.js';
 
+// Pricing per 1M tokens (USD)
+const PRICING = {
+  'claude-opus-4-6':   { input: 5.00,  output: 25.00, cacheRead: 0.50,  cacheWrite: 6.25 },
+  'claude-opus-4-5':   { input: 5.00,  output: 25.00, cacheRead: 0.50,  cacheWrite: 6.25 },
+  'claude-sonnet-4-6': { input: 3.00,  output: 15.00, cacheRead: 0.30,  cacheWrite: 3.75 },
+  'claude-sonnet-4-5': { input: 3.00,  output: 15.00, cacheRead: 0.30,  cacheWrite: 3.75 },
+  'claude-haiku-4-5':  { input: 1.00,  output: 5.00,  cacheRead: 0.10,  cacheWrite: 1.25 },
+  'gpt-5.4':           { input: 2.50,  output: 15.00, cacheRead: 0,     cacheWrite: 0 },
+  'gpt-5.2':           { input: 1.75,  output: 14.00, cacheRead: 0,     cacheWrite: 0 },
+  'gpt-5':             { input: 1.25,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
+  'gpt-5-mini':        { input: 0.40,  output: 1.60,  cacheRead: 0,     cacheWrite: 0 },
+  'gemini-2.5-pro':    { input: 1.25,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
+  'gemini-2.5-flash':  { input: 0.15,  output: 0.60,  cacheRead: 0,     cacheWrite: 0 },
+  'grok-4':            { input: 2.00,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
+  'grok-4.1-fast':     { input: 0.20,  output: 0.50,  cacheRead: 0,     cacheWrite: 0 },
+};
+
+function estimateCost(model, input, output, cacheRead = 0, cacheWrite = 0) {
+  const p = PRICING[model];
+  if (!p) return null;
+  return (
+    (input / 1_000_000) * p.input +
+    (output / 1_000_000) * p.output +
+    (cacheRead / 1_000_000) * p.cacheRead +
+    (cacheWrite / 1_000_000) * p.cacheWrite
+  );
+}
+
 function getSide(player) {
   if (player.party === 'liberal' || player.party === 'villager' || player.team === 'blue') return 'good';
   if (player.party === 'fascist' || player.party === 'werewolf' || player.team === 'red') return 'evil';
@@ -51,6 +79,7 @@ export function getTokenStats(gameTypeFilter) {
         cacheRead: 0,
         cacheWrite: 0,
         total: 0,
+        cost: 0,
       };
     }
     return models[model];
@@ -89,20 +118,25 @@ export function getTokenStats(gameTypeFilter) {
 
         const m = ensure(player.model);
         const t = stats.tokens;
-        m.input += t.input || 0;
-        m.output += t.output || 0;
-        m.cacheRead += t.cacheRead || 0;
-        m.cacheWrite += t.cacheWrite || 0;
-        m.total += (t.input || 0) + (t.output || 0);
+        const tIn = t.input || 0, tOut = t.output || 0;
+        const tCR = t.cacheRead || 0, tCW = t.cacheWrite || 0;
+        m.input += tIn;
+        m.output += tOut;
+        m.cacheRead += tCR;
+        m.cacheWrite += tCW;
+        m.total += tIn + tOut;
+        const c = estimateCost(player.model, tIn, tOut, tCR, tCW);
+        if (c !== null) m.cost += c;
 
         // Aggregate for game detail
         if (!gameEntry.models[player.model]) {
-          gameEntry.models[player.model] = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+          gameEntry.models[player.model] = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
         }
-        gameEntry.models[player.model].input += t.input || 0;
-        gameEntry.models[player.model].output += t.output || 0;
-        gameEntry.models[player.model].cacheRead += t.cacheRead || 0;
-        gameEntry.models[player.model].cacheWrite += t.cacheWrite || 0;
+        gameEntry.models[player.model].input += tIn;
+        gameEntry.models[player.model].output += tOut;
+        gameEntry.models[player.model].cacheRead += tCR;
+        gameEntry.models[player.model].cacheWrite += tCW;
+        if (c !== null) gameEntry.models[player.model].cost += c;
       }
 
       // Count games per model
@@ -123,19 +157,18 @@ export function getTokenStats(gameTypeFilter) {
         const m = ensure(model);
         const input = Math.round((game.tokens_input || 0) * ratio);
         const output = Math.round((game.tokens_output || 0) * ratio);
+        const cr = Math.round((game.tokens_cache_read || 0) * ratio);
+        const cw = Math.round((game.tokens_cache_write || 0) * ratio);
         m.input += input;
         m.output += output;
-        m.cacheRead += Math.round((game.tokens_cache_read || 0) * ratio);
-        m.cacheWrite += Math.round((game.tokens_cache_write || 0) * ratio);
+        m.cacheRead += cr;
+        m.cacheWrite += cw;
         m.total += input + output;
+        const c = estimateCost(model, input, output, cr, cw);
+        if (c !== null) m.cost += c;
         m.games++;
 
-        gameEntry.models[model] = {
-          input,
-          output,
-          cacheRead: Math.round((game.tokens_cache_read || 0) * ratio),
-          cacheWrite: Math.round((game.tokens_cache_write || 0) * ratio),
-        };
+        gameEntry.models[model] = { input, output, cacheRead: cr, cacheWrite: cw, cost: c || 0 };
       }
     } else {
       // No token data at all, just count games
@@ -151,9 +184,11 @@ export function getTokenStats(gameTypeFilter) {
   const modelList = Object.values(models)
     .map(m => ({
       ...m,
+      cost: Math.round(m.cost * 10000) / 10000,
       avgInput: m.games > 0 ? Math.round(m.input / m.games) : 0,
       avgOutput: m.games > 0 ? Math.round(m.output / m.games) : 0,
       avgTotal: m.games > 0 ? Math.round(m.total / m.games) : 0,
+      avgCost: m.games > 0 ? Math.round((m.cost / m.games) * 10000) / 10000 : 0,
     }))
     .sort((a, b) => b.total - a.total);
 
@@ -164,8 +199,10 @@ export function getTokenStats(gameTypeFilter) {
     cacheRead: acc.cacheRead + m.cacheRead,
     cacheWrite: acc.cacheWrite + m.cacheWrite,
     total: acc.total + m.total,
+    cost: acc.cost + m.cost,
     games: acc.games + m.games,
-  }), { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, games: 0 });
+  }), { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: 0, games: 0 });
+  totals.cost = Math.round(totals.cost * 10000) / 10000;
 
   return { models: modelList, totals, games: gameDetails };
 }
