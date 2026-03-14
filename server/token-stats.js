@@ -23,8 +23,8 @@ const PRICING = {
   'gpt-5':             { input: 1.25,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
   'gpt-5-mini':        { input: 0.40,  output: 1.60,  cacheRead: 0,     cacheWrite: 0 },
   'gemini-2.5-pro':    { input: 1.25,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
-  'gemini-2.5-flash':  { input: 0.15,  output: 0.60,  cacheRead: 0,     cacheWrite: 0 },
-  'grok-4':            { input: 2.00,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
+  'gemini-2.5-flash':  { input: 0.30,  output: 2.50,  cacheRead: 0,     cacheWrite: 0 },
+  'grok-4':            { input: 3.00,  output: 15.00, cacheRead: 0,     cacheWrite: 0 },
   'grok-4.1-fast':     { input: 0.20,  output: 0.50,  cacheRead: 0,     cacheWrite: 0 },
 };
 
