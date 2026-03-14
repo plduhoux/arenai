@@ -167,6 +167,9 @@ async function callGeminiSession({ model, systemPrompt, messages, maxTokens }) {
     config: {
       maxOutputTokens: maxTokens,
       systemInstruction: systemPrompt,
+      // Disable thinking mode for game responses (concise outputs, no reasoning overhead).
+      // Gemini 2.5 models have thinking enabled by default which causes text=undefined.
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
