@@ -179,7 +179,7 @@ onMounted(async () => {
   gap: 1.5rem;
   margin-bottom: 1.5rem;
   padding: 0.75rem 1rem;
-  background: var(--bg-secondary);
+  background: var(--bg2);
   border-radius: 6px;
   border: 1px solid var(--border);
 }
@@ -194,13 +194,13 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-secondary);
+  color: var(--text2);
 }
 
 .total-value {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .token-table {
@@ -213,7 +213,7 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-secondary);
+  color: var(--text2);
   padding: 0.4rem 0.6rem;
   border-bottom: 2px solid var(--border);
   white-space: nowrap;
@@ -238,7 +238,7 @@ onMounted(async () => {
 }
 
 .token-table .avg-col {
-  color: var(--text-secondary);
+  color: var(--text2);
 }
 
 .token-table .cost-col {
@@ -247,7 +247,7 @@ onMounted(async () => {
 }
 
 .avg-cost {
-  color: var(--text-secondary);
+  color: var(--text2);
   font-size: 0.75rem;
   margin-left: 0.3rem;
 }
@@ -262,7 +262,7 @@ onMounted(async () => {
 }
 
 .game-table .clickable:hover td {
-  background: var(--bg-secondary);
+  background: var(--bg2);
 }
 
 .game-models {
@@ -272,11 +272,11 @@ onMounted(async () => {
 
 .game-date {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text2);
 }
 
 .type-cell {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text2);
 }
 </style>

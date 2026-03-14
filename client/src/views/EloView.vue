@@ -80,24 +80,4 @@ onMounted(async () => {
 })
 </script>
 
-<style>
-.elo-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-.elo-tab {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.elo-tab.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-</style>
+<!-- styles in style.css -->

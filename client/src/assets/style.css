@@ -888,3 +888,52 @@ h3 { font-size: 1.1rem; }
 .test-q { color: var(--text2); margin-bottom: 0.2rem; }
 .test-a { color: #22c55e; }
 .test-err { color: var(--danger); word-break: break-all; }
+
+/* Shared tab buttons (ELO, Tokens, Stats) */
+.elo-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.elo-tab {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.elo-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.elo-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Shared stat cards */
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.stat-card h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  margin-bottom: 0.75rem;
+}
+.wide-card {
+  grid-column: 1 / -1;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
