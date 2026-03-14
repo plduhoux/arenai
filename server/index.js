@@ -232,8 +232,6 @@ api.post('/games/run', async (req, res) => {
   gamePromise.then(game => {
     clearInterval(saveInterval);
     db.saveGame(game);
-    elo.updateElo(game);
-
     const tokens = getTokenUsage(game.id);
     const doneData = {
       id: game.id,
@@ -404,5 +402,4 @@ app.listen(PORT, () => {
   console.log(`ArenAI running on http://localhost:${PORT}`);
   console.log(`Available games: ${Object.keys(GAME_PLUGINS).join(', ')}`);
   db.getDb();
-  elo.initEloTable();
 });

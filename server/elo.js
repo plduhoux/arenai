@@ -1,21 +1,21 @@
 /**
- * ArenAI - ELO Rating System
+ * ArenAI - Dynamic ELO Rating System
  *
- * Generic across all game types. Each model gets:
- * - An overall rating
- * - Per-role ratings (good/evil, or specific roles like seer, bomber, etc.)
+ * Computes ELO ratings on-the-fly from finished games.
+ * No persistent storage — recalculated on every request.
+ * Deleting games automatically updates rankings.
  *
- * K-factor = 32 (standard for new players, good for our sample sizes)
+ * K-factor = 32, base = 1500
  */
 
 import { getDb } from './db.js';
 
 const K = 32;
-const DEFAULT_ELO = 1500;
+const BASE = 1500;
 
-// Map game-specific roles to generic sides
-const GOOD_ROLES = ['liberal', 'villager', 'seer', 'witch', 'president', 'member:blue'];
-const EVIL_ROLES = ['fascist', 'dictator', 'werewolf', 'bomber', 'member:red'];
+function expectedScore(rA, rB) {
+  return 1 / (1 + Math.pow(10, (rB - rA) / 400));
+}
 
 function getSide(player) {
   if (player.party === 'liberal' || player.party === 'villager' || player.team === 'blue') return 'good';
@@ -27,175 +27,195 @@ function isGoodWinner(winner) {
   return ['liberal', 'villager', 'blue'].includes(winner);
 }
 
-export function initEloTable() {
-  const db = getDb();
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS elo_ratings (
-      model TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'overall',
-      rating REAL NOT NULL DEFAULT ${DEFAULT_ELO},
-      games INTEGER NOT NULL DEFAULT 0,
-      wins INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (model, role)
-    );
-
-    CREATE TABLE IF NOT EXISTS elo_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      role TEXT NOT NULL,
-      rating_before REAL NOT NULL,
-      rating_after REAL NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_elo_history_model ON elo_history(model);
-    CREATE INDEX IF NOT EXISTS idx_elo_history_game ON elo_history(game_id);
-  `);
-}
-
-function getElo(db, model, role) {
-  const row = db.prepare('SELECT rating, games, wins FROM elo_ratings WHERE model = ? AND role = ?').get(model, role);
-  return row || { rating: DEFAULT_ELO, games: 0, wins: 0 };
-}
-
-function setElo(db, model, role, rating, won) {
-  db.prepare(`
-    INSERT INTO elo_ratings (model, role, rating, games, wins)
-    VALUES (?, ?, ?, 1, ?)
-    ON CONFLICT(model, role) DO UPDATE SET
-      rating = ?, games = games + 1, wins = wins + ?
-  `).run(model, role, rating, won ? 1 : 0, rating, won ? 1 : 0);
-}
-
-function expectedScore(ratingA, ratingB) {
-  return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
-}
-
-function calcNewRating(rating, expected, actual) {
-  return rating + K * (actual - expected);
-}
-
 /**
- * Update ELO ratings after a game (any game type).
+ * Replay all finished games chronologically and compute ELO ratings.
+ * Returns { overall, byRole: { good, evil }, byGame: { 'two-rooms': {...}, ... } }
  */
-export function updateElo(game) {
-  if (!game.winner || game.winner === 'draw') return;
-
+function computeElo(gameTypeFilter) {
   const db = getDb();
-  initEloTable();
 
-  const goodWon = isGoodWinner(game.winner);
+  const where = gameTypeFilter
+    ? "WHERE status = 'finished' AND game_type = ?"
+    : "WHERE status = 'finished'";
+  const params = gameTypeFilter ? [gameTypeFilter] : [];
 
-  // Group models by side
-  const goodModels = new Set();
-  const evilModels = new Set();
+  const games = db.prepare(`
+    SELECT id, players, winner, game_type, created_at
+    FROM games ${where}
+    ORDER BY created_at ASC
+  `).all(...params);
 
-  for (const p of game.players) {
-    const model = p.model || game.model;
-    const side = getSide(p);
-    if (side === 'good') goodModels.add(model);
-    else if (side === 'evil') evilModels.add(model);
+  // Rating accumulators: model -> { rating, games, wins }
+  const ratings = {
+    overall: {},
+    good: {},
+    evil: {},
+  };
+
+  function ensure(bucket, model) {
+    if (!bucket[model]) bucket[model] = { rating: BASE, games: 0, wins: 0 };
+    return bucket[model];
   }
 
-  // Compute average ELO per side
-  const goodRatings = [...goodModels].map(m => getElo(db, m, 'good').rating);
-  const evilRatings = [...evilModels].map(m => getElo(db, m, 'evil').rating);
-  const avgGoodElo = goodRatings.length > 0 ? goodRatings.reduce((a, b) => a + b, 0) / goodRatings.length : DEFAULT_ELO;
-  const avgEvilElo = evilRatings.length > 0 ? evilRatings.reduce((a, b) => a + b, 0) / evilRatings.length : DEFAULT_ELO;
+  for (const game of games) {
+    if (!game.winner || game.winner === 'draw') continue;
 
-  const transaction = db.transaction(() => {
+    const players = JSON.parse(game.players);
+    const goodWon = isGoodWinner(game.winner);
+
+    // Collect unique models per side
+    const goodModels = new Set();
+    const evilModels = new Set();
+
+    for (const p of players) {
+      const model = p.model || 'unknown';
+      const side = getSide(p);
+      if (side === 'good') goodModels.add(model);
+      else if (side === 'evil') evilModels.add(model);
+    }
+
+    if (goodModels.size === 0 || evilModels.size === 0) continue;
+
+    // Average ELO per side (for matchup expected score)
+    const avgGood = [...goodModels].reduce((s, m) => s + ensure(ratings.good, m).rating, 0) / goodModels.size;
+    const avgEvil = [...evilModels].reduce((s, m) => s + ensure(ratings.evil, m).rating, 0) / evilModels.size;
+
     // Update good side
     for (const model of goodModels) {
-      const elo = getElo(db, model, 'good');
-      const expected = expectedScore(elo.rating, avgEvilElo);
-      const actual = goodWon ? 1 : 0;
-      const updated = calcNewRating(elo.rating, expected, actual);
-      setElo(db, model, 'good', updated, goodWon);
+      const r = ensure(ratings.good, model);
+      const exp = expectedScore(r.rating, avgEvil);
+      r.rating += K * ((goodWon ? 1 : 0) - exp);
+      r.games++;
+      if (goodWon) r.wins++;
 
-      db.prepare('INSERT INTO elo_history (game_id, model, role, rating_before, rating_after) VALUES (?, ?, ?, ?, ?)')
-        .run(game.id, model, 'good', elo.rating, updated);
-
-      // Overall
-      const overall = getElo(db, model, 'overall');
-      const overallExpected = expectedScore(overall.rating, avgEvilElo);
-      const overallUpdated = calcNewRating(overall.rating, overallExpected, actual);
-      setElo(db, model, 'overall', overallUpdated, goodWon);
+      // Overall (always update)
+      const o = ensure(ratings.overall, model);
+      const oExp = expectedScore(o.rating, avgEvil);
+      o.rating += K * ((goodWon ? 1 : 0) - oExp);
+      o.games++;
+      if (goodWon) o.wins++;
     }
 
     // Update evil side
     for (const model of evilModels) {
-      const elo = getElo(db, model, 'evil');
-      const expected = expectedScore(elo.rating, avgGoodElo);
-      const actual = goodWon ? 0 : 1;
-      const updated = calcNewRating(elo.rating, expected, actual);
-      setElo(db, model, 'evil', updated, !goodWon);
+      const r = ensure(ratings.evil, model);
+      const exp = expectedScore(r.rating, avgGood);
+      r.rating += K * ((goodWon ? 0 : 1) - exp);
+      r.games++;
+      if (!goodWon) r.wins++;
 
-      db.prepare('INSERT INTO elo_history (game_id, model, role, rating_before, rating_after) VALUES (?, ?, ?, ?, ?)')
-        .run(game.id, model, 'evil', elo.rating, updated);
-
-      // Overall (skip if same model on both sides)
+      // Overall (skip if same model on both sides to avoid double-counting)
       if (!goodModels.has(model)) {
-        const overall = getElo(db, model, 'overall');
-        const overallExpected = expectedScore(overall.rating, avgGoodElo);
-        const overallUpdated = calcNewRating(overall.rating, overallExpected, actual);
-        setElo(db, model, 'overall', overallUpdated, !goodWon);
+        const o = ensure(ratings.overall, model);
+        const oExp = expectedScore(o.rating, avgGood);
+        o.rating += K * ((goodWon ? 0 : 1) - oExp);
+        o.games++;
+        if (!goodWon) o.wins++;
       }
     }
-  });
+  }
 
-  transaction();
+  return ratings;
 }
 
-/**
- * Get current ELO rankings.
- */
-export function getEloRankings() {
-  const db = getDb();
-  initEloTable();
-
-  const all = db.prepare(`
-    SELECT model, role, rating, games, wins
-    FROM elo_ratings ORDER BY rating DESC
-  `).all();
-
-  const overall = all
-    .filter(r => r.role === 'overall')
-    .map(r => ({
-      model: r.model,
+function formatBucket(bucket) {
+  return Object.entries(bucket)
+    .map(([model, r]) => ({
+      model,
       rating: Math.round(r.rating),
       games: r.games,
       wins: r.wins,
       winRate: r.games > 0 ? Math.round((r.wins / r.games) * 100) : 0,
     }))
     .sort((a, b) => b.rating - a.rating);
-
-  const byRole = {};
-  for (const role of ['good', 'evil']) {
-    byRole[role] = all
-      .filter(r => r.role === role)
-      .map(r => ({
-        model: r.model,
-        rating: Math.round(r.rating),
-        games: r.games,
-        wins: r.wins,
-        winRate: r.games > 0 ? Math.round((r.wins / r.games) * 100) : 0,
-      }))
-      .sort((a, b) => b.rating - a.rating);
-  }
-
-  return { overall, byRole };
 }
 
 /**
- * Get ELO history for a model.
+ * Get ELO rankings (computed dynamically).
+ */
+export function getEloRankings() {
+  const db = getDb();
+
+  // Get all game types
+  const gameTypes = db.prepare("SELECT DISTINCT game_type FROM games WHERE status = 'finished'")
+    .all().map(r => r.game_type);
+
+  // Overall ratings (all games)
+  const all = computeElo();
+
+  // Per game type
+  const byGame = {};
+  for (const gt of gameTypes) {
+    const gtRatings = computeElo(gt);
+    byGame[gt] = {
+      overall: formatBucket(gtRatings.overall),
+      good: formatBucket(gtRatings.good),
+      evil: formatBucket(gtRatings.evil),
+    };
+  }
+
+  return {
+    overall: formatBucket(all.overall),
+    byRole: {
+      good: formatBucket(all.good),
+      evil: formatBucket(all.evil),
+    },
+    byGame,
+    gameTypes,
+  };
+}
+
+/**
+ * Get ELO history for a model (computed dynamically by replaying games).
  */
 export function getEloHistory(model) {
   const db = getDb();
-  initEloTable();
+  const games = db.prepare("SELECT id, players, winner, game_type, created_at FROM games WHERE status = 'finished' ORDER BY created_at ASC").all();
 
-  return db.prepare(`
-    SELECT game_id, role, rating_before, rating_after, created_at
-    FROM elo_history WHERE model = ? ORDER BY id ASC
-  `).all(model);
+  const history = [];
+  let rating = BASE;
+
+  for (const game of games) {
+    if (!game.winner || game.winner === 'draw') continue;
+    const players = JSON.parse(game.players);
+    const goodWon = isGoodWinner(game.winner);
+
+    const goodModels = new Set();
+    const evilModels = new Set();
+    let modelSide = null;
+
+    for (const p of players) {
+      const m = p.model || 'unknown';
+      const side = getSide(p);
+      if (side === 'good') goodModels.add(m);
+      else if (side === 'evil') evilModels.add(m);
+      if (m === model) modelSide = side;
+    }
+
+    if (!modelSide) continue;
+
+    const opponentAvg = modelSide === 'good'
+      ? [...evilModels].reduce((s, m) => s + BASE, 0) / evilModels.size  // simplified
+      : [...goodModels].reduce((s, m) => s + BASE, 0) / goodModels.size;
+
+    const won = (modelSide === 'good' && goodWon) || (modelSide === 'evil' && !goodWon);
+    const before = rating;
+    const exp = expectedScore(rating, opponentAvg);
+    rating += K * ((won ? 1 : 0) - exp);
+
+    history.push({
+      game_id: game.id,
+      game_type: game.game_type,
+      role: modelSide,
+      rating_before: Math.round(before),
+      rating_after: Math.round(rating),
+      created_at: game.created_at,
+    });
+  }
+
+  return history;
 }
+
+// Legacy stubs — no-ops now
+export function initEloTable() {}
+export function updateElo() {}
