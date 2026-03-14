@@ -164,8 +164,8 @@ api.post('/games/run', async (req, res) => {
   }
 
   const runningCount = listRunningGames().length;
-  if (runningCount >= 3) {
-    return res.status(429).json({ error: 'Too many concurrent games' });
+  if (runningCount >= 20) {
+    return res.status(429).json({ error: 'Too many concurrent games (max 20)' });
   }
 
   // Create emitter for this game
@@ -275,6 +275,129 @@ api.post('/games/run', async (req, res) => {
       setTimeout(() => activeGames.delete(gameId), 60 * 1000);
     }
   });
+});
+
+// Battle mode: launch N games with alternating roles
+api.post('/games/battle', async (req, res) => {
+  const {
+    gameType = 'werewolf',
+    playerCount = 7,
+    modelA,
+    modelB,
+    count = 10,
+    enableThoughts = false,
+    terms,
+    winPolicies,
+    discussionRounds,
+  } = req.body;
+
+  if (!modelA || !modelB) {
+    return res.status(400).json({ error: 'modelA and modelB are required' });
+  }
+  if (count < 2 || count > 50) {
+    return res.status(400).json({ error: 'count must be 2-50' });
+  }
+
+  const plugin = GAME_PLUGINS[gameType];
+  if (!plugin) {
+    return res.status(400).json({ error: `Unknown game type: ${gameType}` });
+  }
+
+  const runningCount = listRunningGames().length;
+  if (runningCount + count > 20) {
+    return res.status(429).json({ error: `Too many concurrent games. Max 20, currently ${runningCount} running.` });
+  }
+
+  console.log(`[battle] ${modelA} vs ${modelB}, ${count} games of ${gameType}`);
+
+  const gameIds = [];
+
+  for (let i = 0; i < count; i++) {
+    // Alternate roles each game
+    const modelGood = i % 2 === 0 ? modelA : modelB;
+    const modelEvil = i % 2 === 0 ? modelB : modelA;
+
+    const emitter = new EventEmitter();
+    emitter.setMaxListeners(20);
+
+    let gameRef = null;
+    let saveInterval = null;
+
+    const activeGame = {
+      emitter,
+      events: [],
+      finished: false,
+      doneData: null,
+    };
+
+    const gamePromise = runGame(plugin, {
+      playerCount,
+      model: modelGood,
+      modelGood,
+      modelEvil,
+      enableThoughts,
+      terms,
+      winPolicies,
+      discussionRounds,
+      onEvent: (event) => {
+        if (event.type === 'game_start' && event.gameId) {
+          activeGames.set(event.gameId, activeGame);
+        }
+        activeGame.events.push(event);
+        emitter.emit('event', event);
+      },
+      onGameRef: (game) => {
+        gameRef = game;
+        activeGame.gameRef = game;
+        game._sseEvents = activeGame.events;
+        db.saveGame(game);
+        activeGames.set(game.id, activeGame);
+        saveInterval = setInterval(() => {
+          if (gameRef) db.saveGame(gameRef);
+        }, 10000);
+      },
+    });
+
+    // Wait for game to initialize
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    if (gameRef?.id) {
+      gameIds.push(gameRef.id);
+    }
+
+    // Handle completion in background
+    gamePromise.then(game => {
+      clearInterval(saveInterval);
+      db.saveGame(game);
+      const tokens = getTokenUsage(game.id);
+      const doneData = {
+        id: game.id,
+        status: 'finished',
+        gameType: game.gameType,
+        winner: game.winner,
+        winReason: game.winReason,
+        rounds: game.round,
+        players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model })),
+        tokensInput: tokens.input,
+        tokensOutput: tokens.output,
+        tokensCacheRead: tokens.cacheRead || 0,
+        tokensCacheWrite: tokens.cacheWrite || 0,
+        tokensTotalSent: tokens.totalSent || 0,
+        apiCalls: tokens.calls,
+      };
+      activeGame.finished = true;
+      activeGame.doneData = doneData;
+      emitter.emit('done', doneData);
+      setTimeout(() => activeGames.delete(game.id), 5 * 60 * 1000);
+    }).catch(err => {
+      clearInterval(saveInterval);
+      if (gameRef) db.saveGame(gameRef);
+      emitter.emit('error', { error: err.message });
+      if (gameRef?.id) setTimeout(() => activeGames.delete(gameRef.id), 60 * 1000);
+    });
+  }
+
+  res.json({ gameIds, count: gameIds.length });
 });
 
 // Game controls

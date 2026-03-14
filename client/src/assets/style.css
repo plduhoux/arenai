@@ -937,3 +937,60 @@ h3 { font-size: 1.1rem; }
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
+/* Battle mode */
+.battle-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+.battle-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+.battle-desc {
+  color: var(--text2);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.battle-count {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.count-btn {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.count-btn:hover { border-color: var(--accent); color: var(--accent); }
+.count-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.count-input {
+  width: 60px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.btn-battle {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--accent), #e8a43a) !important;
+  border: none !important;
+}
+.btn-battle:hover { opacity: 0.9; }
+.battle-warn {
+  color: var(--warning);
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}

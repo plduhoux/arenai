@@ -78,6 +78,33 @@
     >
       {{ starting ? 'Starting...' : 'Start Game' }}
     </button>
+
+    <div class="battle-section">
+      <h2>Battle Mode</h2>
+      <p class="battle-desc">Launch multiple games with alternating roles between two models.</p>
+
+      <div class="battle-config">
+        <div class="form-group">
+          <label>Number of games</label>
+          <div class="battle-count">
+            <button v-for="n in [2, 5, 10, 20]" :key="n"
+              class="count-btn" :class="{ active: battleCount === n }"
+              @click="battleCount = n"
+            >{{ n }}</button>
+            <input type="number" v-model.number="battleCount" min="2" max="50" class="count-input" />
+          </div>
+        </div>
+      </div>
+
+      <button
+        class="btn-primary btn-large btn-battle"
+        :disabled="battling || modelGood === modelEvil"
+        @click="launchBattle"
+      >
+        {{ battling ? `Launching... (${battleProgress}/${battleCount})` : `Battle ${battleCount} games` }}
+      </button>
+      <p v-if="modelGood === modelEvil" class="battle-warn">Pick two different models for Battle mode.</p>
+    </div>
   </div>
 </template>
 
@@ -141,6 +168,9 @@ const factionLabels = computed(() => {
   }
 })
 const starting = ref(false)
+const battling = ref(false)
+const battleCount = ref(10)
+const battleProgress = ref(0)
 
 const WIN_POLICIES = {
   short: { liberal: 3, fascist: 4 },
@@ -184,6 +214,47 @@ async function launchGame() {
     alert(err.message)
   } finally {
     starting.value = false
+  }
+}
+
+async function launchBattle() {
+  battling.value = true
+  battleProgress.value = 0
+
+  try {
+    const response = await fetch('/api/games/battle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameType: gameType.value,
+        playerCount: playerCount.value,
+        modelA: modelGood.value,
+        modelB: modelEvil.value,
+        count: battleCount.value,
+        enableThoughts: enableThoughts.value,
+        ...(gameType.value === 'secret-dictator' ? {
+          winPolicies: WIN_POLICIES[gameLength.value],
+          terms: TERMS_PRESETS[termsKey.value],
+        } : {}),
+        ...(gameType.value === 'werewolf' ? {
+          discussionRounds: discussionRounds.value,
+        } : {}),
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      alert(err.error || 'Failed to start battle')
+      return
+    }
+
+    const { gameIds } = await response.json()
+    battleProgress.value = gameIds.length
+    router.push('/')
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    battling.value = false
   }
 }
 </script>
