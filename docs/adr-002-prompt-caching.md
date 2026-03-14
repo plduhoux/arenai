@@ -73,11 +73,11 @@ GPT-5.4 cache parce que son seuil est de **1 024 tokens** : atteint dès le call
 
 | Modèle | Seuil minimum | TTL | Réduction coût |
 |--------|--------------|-----|----------------|
-| Gemini 2.5 Pro/Flash | **2 048 tokens** (Vertex AI) / **4 096 tokens** (AI Studio) | configurable (min 1 min) | input cached : 75% moins cher + coût stockage par heure |
+| Gemini 2.5 Pro/Flash | **2 048 tokens** (Vertex AI) / **4 096 tokens** (AI Studio) | automatique | input cached : 90% moins cher (implicit caching) |
 
-**Activation** : explicite. Nécessite de créer un objet cache avec l'API `cachedContents`. Pas de caching automatique.
-
-**Attention** : le context caching Gemini est fondamentalement différent des autres providers. C'est un objet persistant côté serveur avec un TTL configurable, pas du prefix matching automatique. Il faut créer/gérer le cache manuellement.
+**Activation** : deux modes disponibles :
+- **Implicit caching** (depuis mai 2025) : automatique, aucune config nécessaire. ArenAI utilise ce mode via le SDK natif `@google/genai`.
+- **Explicit caching** : objet persistant côté serveur avec TTL configurable (non utilisé par ArenAI).
 
 ### xAI (Grok)
 
@@ -110,7 +110,7 @@ GPT-5.4 cache parce que son seuil est de **1 024 tokens** : atteint dès le call
 | Anthropic Sonnet 4.6 | 2 048 | ~5-6 | ~5-6/12 | **10-15%** |
 | Anthropic Opus 4/4.1 | 1 024 | ~3 | ~8-9/12 | **15-25%** |
 | **Anthropic Opus 4.5/4.6** | **4 096** | **jamais** | **0/12** | **0%** |
-| Google Gemini | 2 048-4 096 | N/A (manuel) | N/A | N/A (nécessite implémentation spécifique) |
+| Google Gemini 2.5 | 2 048-4 096 | ~2-5 | ~6-8/12 | **10-20%** |
 
 ### Options pour améliorer le cache Opus 4.5/4.6
 
@@ -152,10 +152,12 @@ Tous les tests ont été réalisés le 14 mars 2026 avec un token OAuth.
 - Tracking préparé via `usage.prompt_cache_hit_tokens`
 - Provider pas encore ajouté dans ArenAI
 
-### Google / Gemini
-- Le context caching Gemini est fondamentalement différent : objet persistant côté serveur avec TTL configurable
-- Pas de caching automatique via l'endpoint OpenAI-compatible
-- Implémentation hors scope pour le moment (nécessiterait l'API native Gemini)
+### Google / Gemini (llm-client.js)
+- Migré de l'endpoint OpenAI-compatible vers le **SDK natif** `@google/genai` pour les appels session
+- Gemini a un **implicit caching** automatique depuis mai 2025 (Gemini 2.5+) : aucune config nécessaire
+- Seuil minimum : 4 096 tokens (AI Studio) / 2 048 tokens (Vertex AI)
+- Tracking via `usageMetadata.cachedContentTokenCount` (mappé sur `cache_read_input_tokens` en interne)
+- Les appels one-shot (`askLLM`) passent toujours par l'endpoint OpenAI-compatible (pas de session)
 
 ## Conclusion
 

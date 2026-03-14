@@ -5,6 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { getSession, addUserMessage, addAssistantMessage, trackSessionTokens } from './session-manager.js';
 
 // --- Fatal errors (no retry, stop game immediately) ---
@@ -135,6 +136,53 @@ function trackTokens(gameId, usage) {
   current.totalSent += inputTokens + cacheRead + cacheWrite;
   current.calls += 1;
   gameTokens.set(gameId, current);
+}
+
+// --- Google Gemini native client ---
+
+function getGeminiClient() {
+  const key = 'gemini';
+  if (clients.has(key)) return clients.get(key);
+  const apiKey = getApiKey('google');
+  if (!apiKey) throw new FatalLLMError('No Google API key configured. Add one in Settings.');
+  const client = new GoogleGenAI({ apiKey });
+  clients.set(key, client);
+  return client;
+}
+
+// --- Google Gemini session call (native API with implicit caching) ---
+
+async function callGeminiSession({ model, systemPrompt, messages, maxTokens }) {
+  const ai = getGeminiClient();
+
+  // Convert messages from OpenAI format to Gemini format
+  const geminiContents = messages.map(msg => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }],
+  }));
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: geminiContents,
+    config: {
+      maxOutputTokens: maxTokens,
+      systemInstruction: systemPrompt,
+    },
+  });
+
+  const text = response.text || '';
+  const usage = response.usageMetadata || {};
+
+  // Map Gemini usage to our unified format
+  return {
+    text: text.trim(),
+    usage: {
+      input_tokens: usage.promptTokenCount || 0,
+      output_tokens: usage.candidatesTokenCount || 0,
+      // Gemini implicit caching: cachedContentTokenCount
+      cache_read_input_tokens: usage.cachedContentTokenCount || 0,
+    },
+  };
 }
 
 // --- Anthropic call ---
@@ -298,6 +346,8 @@ export async function askLLMSession({
       let result;
       if (provider === 'anthropic') {
         result = await callAnthropicSession({ model, systemPrompt: session.systemPrompt, messages, maxTokens, playerName });
+      } else if (provider === 'google') {
+        result = await callGeminiSession({ model, systemPrompt: session.systemPrompt, messages, maxTokens });
       } else {
         // For xAI: use gameId+playerKey as stable conversation ID for cache routing
         const convId = `${gameId}:${playerKey || playerName}`;
