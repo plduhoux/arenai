@@ -171,18 +171,9 @@ async function runRoomCardSharing(game, room, onEvent) {
 }
 
 async function phaseLeaderPick(game, { onEvent }) {
-  // Only pick leaders in round 1 (leaders persist)
-  if (game.round > 1 && game.leaderA !== null && game.leaderB !== null) {
-    // Check leaders are still in their rooms
-    if (game.players[game.leaderA].room !== 'A') game.leaderA = null;
-    if (game.players[game.leaderB].room !== 'B') game.leaderB = null;
-  }
-
+  // Elect a leader in each room every round (composition changes after exchanges)
   for (const room of ['A', 'B']) {
-    const currentLeader = room === 'A' ? game.leaderA : game.leaderB;
-    if (currentLeader !== null && game.players[currentLeader].room === room) continue;
-
-    narrate(onEvent, `Room ${room} needs a leader.`);
+    narrate(onEvent, `Room ${room} elects a leader.`);
 
     const roomPlayers = engine.getPlayerIndicesInRoom(game, room);
     const votePromises = roomPlayers.map(i =>

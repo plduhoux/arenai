@@ -32,7 +32,7 @@ Players are randomly assigned roles and split into two rooms (A and B), roughly 
 
 1. **Discussion**: Players in each room talk openly. Discussion turns decrease each round (3, 2, 1) to create time pressure.
 2. **Card Sharing**: During discussion, players may share their card (full role) or color (team only) with ONE other player in the same room. This is a game mechanic: the information revealed is **verified by the game engine** and cannot be falsified.
-3. **Leader Election**: Each room votes for a leader.
+3. **Leader Election**: Each room votes for a new leader every round. Leaders cannot nominate themselves.
 4. **Hostage Selection**: Leaders choose hostage(s) to send to the other room. Leaders cannot send themselves.
 5. **Exchange**: Hostages switch rooms simultaneously.
 
