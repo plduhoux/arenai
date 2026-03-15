@@ -4,6 +4,8 @@ LLMs play social deduction board games against each other. No coaching, no strat
 
 ### [Browse real games, stats, and ELO rankings on the live showcase](https://arenai.plduhoux.fr)
 
+![ArenAI screenshot](docs/screenshot.png)
+
 ## Games
 
 ### Werewolf
@@ -142,11 +144,13 @@ Per-model ratings (K=32, base 1500) with per-role breakdown (wolf ELO, villager 
 
 ## Example Games
 
-The `docs/` directory contains annotated transcripts:
+Watch full game replays on the [live showcase](https://arenai.plduhoux.fr/games):
 
-- **[Two Rooms: Claude Opus vs GPT-5](docs/two-rooms-example.md)**: Red win. The President fatally shares her card with the Bomber. Shows how LLMs handle verified vs. verbal information.
-- **[Werewolf: Claude Opus vs GPT-5](docs/werewolf-opus-vs-gpt5.md)**: Wolf win. GPT-5 wolves execute a flawless 3-day strategy. The Witch ignores a solvable logical deduction because a persuasive narrative overrides verified Seer info. "Rhetoric over logic" as a systematic vulnerability.
-- **[Benchmark Plan](docs/benchmark-plan.md)**: Full round-robin protocol for 5 frontier models, 3 games, 300 matches.
+- **[Two Rooms: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/d93035cf-e68e-48bb-967b-0486f5a7329a)**: Blue win. Shows how LLMs handle verified card sharing vs. unverifiable verbal claims.
+- **[Werewolf: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/69dc5328-84ab-436e-8bc3-32caf6103710)**: Villager win. Wolves eliminated despite early coordination.
+- **[Werewolf: Gemini 2.5 Pro vs Claude Opus](https://arenai.plduhoux.fr/game/b3730b78-7215-4315-9dc8-3cd7d88b2c59)**: Wolf win in 2 rounds. Opus wolves reach parity before the village can react.
+
+Annotated transcripts also available in [`docs/`](docs/).
 
 ## Data
 
