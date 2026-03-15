@@ -1062,3 +1062,70 @@ h3 { font-size: 1.1rem; }
   font-size: 0.8rem;
   margin-top: 0.5rem;
 }
+
+/* Token stats */
+.totals-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.total-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.total-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+}
+.total-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.total-cost .total-value {
+  color: #e8a43a;
+  font-size: 1.3rem;
+}
+
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.token-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text2);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.token-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.token-table .right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.token-table .model-name { font-weight: 500; }
+.token-table .total-col { font-weight: 600; }
+.token-table .avg-col { color: var(--text2); }
+.token-table .cost-col { color: #e8a43a; font-weight: 500; }
+.avg-cost {
+  color: var(--text2);
+  font-size: 0.75rem;
+  margin-left: 0.3rem;
+}
+.game-table .clickable { cursor: pointer; }
+.game-table .clickable:hover td { background: var(--bg2); }
+.game-models { font-weight: 500; display: block; }
+.game-date { font-size: 0.75rem; color: var(--text2); }

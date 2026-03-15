@@ -32,7 +32,9 @@
         <thead>
           <tr>
             <th>Type</th>
-            <th>Matchup</th>
+            <th class="right">Good</th>
+            <th></th>
+            <th>Evil</th>
             <th>Players</th>
             <th>Rounds</th>
             <th>Tokens</th>
@@ -48,17 +50,12 @@
             @click="$router.push(`/game/${g.id}`)"
           >
             <td class="type-cell">{{ gameTypeLabel(g.game_type) }}</td>
-            <td class="matchup-cell">
-              <div class="matchup-line">
-                <span :class="factionClass(g, 'good')">{{ factionLabel(g, 'good') }}</span>
-                <span class="matchup-vs">vs</span>
-                <span :class="factionClass(g, 'evil')">{{ factionLabel(g, 'evil') }}</span>
-              </div>
-              <div class="matchup-line matchup-models-line">
-                <span :class="'matchup-model ' + factionColorClass(g, 'good')">{{ factionModel(g, 'good') }}</span>
-                <span class="matchup-vs">vs</span>
-                <span :class="'matchup-model ' + factionColorClass(g, 'evil')">{{ factionModel(g, 'evil') }}</span>
-              </div>
+            <td class="matchup-good-cell">
+              <span :class="factionClass(g, 'good')">{{ factionModel(g, 'good') }}</span>
+            </td>
+            <td class="matchup-vs-cell">vs</td>
+            <td class="matchup-evil-cell">
+              <span :class="factionClass(g, 'evil')">{{ factionModel(g, 'evil') }}</span>
             </td>
             <td class="center">{{ g.player_count || g.players?.length || '?' }}</td>
             <td class="center">{{ g.rounds || '?' }}</td>
@@ -76,7 +73,7 @@
                 class="btn-delete-small"
                 @click.stop="deleteGame(g)"
                 title="Delete game"
-              >×</button>
+              >🗑</button>
             </td>
           </tr>
         </tbody>
@@ -301,15 +298,25 @@ onMounted(async () => {
 .date-cell { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; }
 .type-cell { font-size: 0.85rem; }
 
-.matchup-cell { font-size: 0.85rem; }
-.matchup-line { white-space: nowrap; }
-.matchup-models-line { margin-top: 0.1rem; }
-.matchup-model {
-  font-family: var(--mono);
-  font-size: 0.75rem;
+.matchup-good-cell {
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
-.matchup-model.model-good { color: var(--liberal); }
-.matchup-model.model-evil { color: var(--fascist); }
+.matchup-evil-cell {
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.matchup-vs-cell {
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.75rem;
+  padding: 0 0.2rem !important;
+  width: 1.5rem;
+}
 .matchup-vs { color: var(--text-secondary); margin: 0 0.4rem; font-size: 0.8rem; }
 .matchup-good, .matchup-evil {
   display: inline-block;
@@ -350,43 +357,39 @@ onMounted(async () => {
 
 .btn-delete-small {
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
+  border: none;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-}
-
-.game-row:hover .btn-delete-small {
-  opacity: 0.5;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.3rem;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+  filter: grayscale(1);
 }
 
 .btn-delete-small:hover {
-  opacity: 1 !important;
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.1);
+  opacity: 1;
+  filter: none;
 }
 
 .btn-save-small {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text2);
   cursor: pointer;
   font-size: 1rem;
   padding: 0.1rem 0.3rem;
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 0.15s, color 0.15s;
 }
 .btn-save-small.saved { opacity: 1; color: #e8a43a; }
-.game-row:hover .btn-save-small { opacity: 0.5; }
-.btn-save-small:hover { opacity: 1 !important; color: #e8a43a; }
+.btn-save-small:hover { opacity: 1; color: #e8a43a; }
 
 .action-cell {
-  width: 50px;
-  text-align: center;
+  width: 60px;
+  text-align: right;
   white-space: nowrap;
+}
+.action-cell button + button {
+  margin-left: 0.3rem;
 }
 </style>

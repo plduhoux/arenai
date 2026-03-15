@@ -144,16 +144,16 @@ const games = [
     tokenEstimate: '~50-60k tokens per game',
   },
   {
-    id: 'secret-dictator', name: 'Secret Dictator', icon: '\u{1F3DB}',
-    desc: 'Hidden roles, policy cards, legislative deception. 5-10 players.',
-    rules: 'Liberals vs Fascists. Each round: a President nominates a Chancellor, all vote. If approved, President draws 3 policy cards, discards 1, Chancellor picks from 2. Liberals win with 5 liberal policies or by executing the Dictator. Fascists win with 6 fascist policies or electing the Dictator as Chancellor after 3+ fascist policies.',
-    tokenEstimate: '~40-60k tokens per game',
-  },
-  {
     id: 'two-rooms', name: 'Two Rooms', icon: '\u{1F4A3}',
     desc: 'Two teams, two rooms, hostage exchanges. Find the President.',
     rules: 'Blue vs Red team in 2 rooms over 3 rounds. Blue has a President, Red has a Bomber. Each round: discuss, elect a room leader, leader picks hostages to swap rooms. Players can share cards (verified) or make verbal claims (unverifiable). Red wins if the Bomber ends in the same room as the President.',
     tokenEstimate: '~100k tokens per game',
+  },
+  {
+    id: 'secret-dictator', name: 'Secret Dictator', icon: '\u{1F3DB}',
+    desc: 'Hidden roles, policy cards, legislative deception. 5-10 players.',
+    rules: 'Liberals vs Fascists. Each round: a President nominates a Chancellor, all vote. If approved, President draws 3 policy cards, discards 1, Chancellor picks from 2. Liberals win with 5 liberal policies or by executing the Dictator. Fascists win with 6 fascist policies or electing the Dictator as Chancellor after 3+ fascist policies.',
+    tokenEstimate: '~40-60k tokens per game',
   },
 ]
 
