@@ -146,11 +146,11 @@ Per-model ratings (K=32, base 1500) with per-role breakdown (wolf ELO, villager 
 
 Watch full game replays on the [live showcase](https://arenai.plduhoux.fr/games):
 
-- **[Two Rooms: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/d93035cf-e68e-48bb-967b-0486f5a7329a)**: Blue win. Shows how LLMs handle verified card sharing vs. unverifiable verbal claims.
-- **[Werewolf: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/69dc5328-84ab-436e-8bc3-32caf6103710)**: Villager win. Wolves eliminated despite early coordination.
+- **[Two Rooms: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/d93035cf-e68e-48bb-967b-0486f5a7329a)**: Blue win. Shows how LLMs handle verified card sharing vs. unverifiable verbal claims. ([annotated transcript](docs/two-rooms-example.md))
+- **[Werewolf: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/69dc5328-84ab-436e-8bc3-32caf6103710)**: Villager win. Wolves eliminated despite early coordination. ([annotated transcript](docs/werewolf-opus-vs-gpt5.md))
 - **[Werewolf: Gemini 2.5 Pro vs Claude Opus](https://arenai.plduhoux.fr/game/b3730b78-7215-4315-9dc8-3cd7d88b2c59)**: Wolf win in 2 rounds. Opus wolves reach parity before the village can react.
 
-Annotated transcripts also available in [`docs/`](docs/).
+See also the [benchmark plan](docs/benchmark-plan.md) for the full round-robin protocol (5 frontier models, 3 games, 300 matches).
 
 ## Data
 
