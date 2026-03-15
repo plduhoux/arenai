@@ -103,6 +103,9 @@ function initSchema() {
       ALTER TABLE games ADD COLUMN session_stats JSON;
     `);
   }
+  if (!cols.includes('saved')) {
+    db.exec(`ALTER TABLE games ADD COLUMN saved INTEGER DEFAULT 0;`);
+  }
 }
 
 function seedDefaults() {
@@ -261,7 +264,7 @@ export function listGames(limit = 50, offset = 0) {
   const db = getDb();
   return db.prepare(`
     SELECT id, model, game_type, player_count, rounds, winner, win_reason,
-           players, policies_liberal, policies_fascist, status,
+           players, policies_liberal, policies_fascist, status, saved,
            tokens_input, tokens_output, api_calls,
            tokens_cache_read, tokens_cache_write, tokens_total_sent,
            created_at, finished_at
@@ -344,6 +347,23 @@ export function getStats(gameType) {
   `).all().map(r => r.game_type);
 
   return { totals, byReason, byModel, gameTypes };
+}
+
+export function toggleSaved(id) {
+  const db = getDb();
+  db.prepare('UPDATE games SET saved = CASE WHEN saved = 1 THEN 0 ELSE 1 END WHERE id = ?').run(id);
+  return db.prepare('SELECT saved FROM games WHERE id = ?').get(id);
+}
+
+export function listSavedGames() {
+  const db = getDb();
+  return db.prepare(`
+    SELECT * FROM games WHERE saved = 1 AND status = 'finished' ORDER BY created_at DESC
+  `).all().map(row => ({
+    ...row,
+    players: JSON.parse(row.players),
+    session_stats: row.session_stats ? JSON.parse(row.session_stats) : null,
+  }));
 }
 
 export function deleteGame(id) {

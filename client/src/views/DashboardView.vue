@@ -2,12 +2,12 @@
   <div class="dashboard">
     <div class="page-header">
       <h1>Games</h1>
-      <div class="header-actions">
+      <div class="header-actions" v-if="!isStatic">
         <button
           v-if="unfinishedCount > 0"
           class="btn-danger btn-small"
           @click="cleanupUnfinished"
-        >🗑 Clean up {{ unfinishedCount }} unfinished</button>
+        >Clean up {{ unfinishedCount }} unfinished</button>
         <router-link to="/new" class="btn-primary">New Game</router-link>
       </div>
     </div>
@@ -37,7 +37,7 @@
             <th>Rounds</th>
             <th>Tokens</th>
             <th>Date</th>
-            <th></th>
+            <th v-if="!isStatic"></th>
           </tr>
         </thead>
         <tbody>
@@ -64,7 +64,14 @@
             <td class="center">{{ g.rounds || '?' }}</td>
             <td class="tokens-cell">{{ g.tokens_input ? formatTokens(g.tokens_input + g.tokens_output) : '-' }}</td>
             <td class="date-cell">{{ formatDate(g.created_at) }}</td>
-            <td class="action-cell">
+            <td v-if="!isStatic" class="action-cell">
+              <button
+                v-if="g.status === 'finished'"
+                class="btn-save-small"
+                :class="{ saved: g.saved }"
+                @click.stop="toggleSave(g)"
+                :title="g.saved ? 'Remove from showcase' : 'Save for showcase'"
+              >{{ g.saved ? '★' : '☆' }}</button>
               <button
                 class="btn-delete-small"
                 @click.stop="deleteGame(g)"
@@ -80,7 +87,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { fetchGames } from '../composables/useApi'
+import { fetchGames, isStatic } from '../composables/useApi'
 import { formatDate, formatTokens, shortModel } from '../utils/format'
 
 const games = ref([])
@@ -192,6 +199,16 @@ const filteredGames = computed(() => {
 const unfinishedCount = computed(() =>
   games.value.filter(g => g.status !== 'finished').length
 )
+
+async function toggleSave(g) {
+  try {
+    const res = await fetch(`/api/games/${g.id}/save`, { method: 'PUT' })
+    if (res.ok) {
+      const { saved } = await res.json()
+      g.saved = saved
+    }
+  } catch {}
+}
 
 async function deleteGame(g) {
   if (!confirm(`Delete game ${g.id.slice(0, 8)}...?`)) return
@@ -353,8 +370,23 @@ onMounted(async () => {
   background: rgba(239, 68, 68, 0.1);
 }
 
+.btn-save-small {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.1rem 0.3rem;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.btn-save-small.saved { opacity: 1; color: #e8a43a; }
+.game-row:hover .btn-save-small { opacity: 0.5; }
+.btn-save-small:hover { opacity: 1 !important; color: #e8a43a; }
+
 .action-cell {
-  width: 30px;
+  width: 50px;
   text-align: center;
+  white-space: nowrap;
 }
 </style>

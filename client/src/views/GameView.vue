@@ -67,7 +67,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useGameSSE } from '../composables/useGameSSE'
-import { fetchGame, fetchGameLogs } from '../composables/useApi'
+import { fetchGame, fetchGameLogs, isStatic } from '../composables/useApi'
 import { formatTokens } from '../utils/format'
 import StatusBar from '../components/StatusBar.vue'
 import LiveFeed from '../components/LiveFeed.vue'
@@ -192,18 +192,21 @@ async function loadFinishedGame() {
 
 onMounted(async () => {
   try {
-    const statusRes = await fetch('/api/status')
-    const status = await statusRes.json()
-    const isRunning = status.games?.some(g => g.id === props.id)
-
-    if (isRunning) {
-      isLive.value = true
-      connectToStream(props.id)
-      // Poll sessions every 2s for inspector
-      sessionPollInterval = setInterval(fetchSessions, 2000)
-      fetchSessions()
-    } else {
+    if (isStatic) {
       await loadFinishedGame()
+    } else {
+      const statusRes = await fetch('/api/status')
+      const status = await statusRes.json()
+      const isRunning = status.games?.some(g => g.id === props.id)
+
+      if (isRunning) {
+        isLive.value = true
+        connectToStream(props.id)
+        sessionPollInterval = setInterval(fetchSessions, 2000)
+        fetchSessions()
+      } else {
+        await loadFinishedGame()
+      }
     }
   } catch (e) {
     error.value = e.message

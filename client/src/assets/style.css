@@ -73,8 +73,9 @@ h3 { font-size: 1.1rem; }
   transition: all 0.15s;
 }
 
-.nav-links a:hover { background: var(--bg3); color: var(--text); }
+.nav-links a:hover { background: var(--bg3); color: var(--text); text-decoration: none; }
 .nav-links a.active { background: var(--accent2); color: white; }
+.nav-github { color: var(--text2) !important; }
 
 .main-content {
   max-width: 1000px;

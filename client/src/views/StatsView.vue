@@ -227,6 +227,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { shortModel, winReasonLabel, formatTokens as fmt, formatDate } from '../utils/format'
+import { isStatic } from '../composables/useApi'
 import EloTable from '../components/EloTable.vue'
 
 const router = useRouter()
@@ -299,9 +300,14 @@ function winPct(m) {
 async function loadStats() {
   statsLoading.value = true
   const gt = gameTypeFilter.value
-  const params = gt && gt !== 'all' ? `?gameType=${gt}` : ''
-  const res = await fetch(`/api/stats${params}`)
-  const data = await res.json()
+  const base = isStatic ? '/data/stats.json' : '/api/stats'
+  const params = (!isStatic && gt && gt !== 'all') ? `?gameType=${gt}` : ''
+  const res = await fetch(`${base}${params}`)
+  let data = await res.json()
+  // In static mode, filter client-side
+  if (isStatic && gt && gt !== 'all' && data.byGameType) {
+    data = data.byGameType[gt] || data
+  }
   stats.value = data
   if (data.gameTypes) allGameTypes.value = data.gameTypes
   statsLoading.value = false
@@ -323,7 +329,8 @@ const eloCurrentData = computed(() => {
 async function loadElo() {
   eloLoading.value = true
   try {
-    const res = await fetch('/api/elo')
+    const url = isStatic ? '/data/elo.json' : '/api/elo'
+    const res = await fetch(url)
     elo.value = await res.json()
   } catch {}
   eloLoading.value = false
@@ -367,7 +374,8 @@ const tokensCurrentGames = computed(() => {
 async function loadTokens() {
   tokensLoading.value = true
   try {
-    const res = await fetch('/api/token-stats')
+    const url = isStatic ? '/data/token-stats.json' : '/api/token-stats'
+    const res = await fetch(url)
     tokenData.value = await res.json()
   } catch {}
   tokensLoading.value = false

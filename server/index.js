@@ -495,6 +495,12 @@ api.post('/games/:id/stop', (req, res) => {
   res.json({ ok: true, action: 'stopped' });
 });
 
+api.put('/games/:id/save', (req, res) => {
+  const result = db.toggleSaved(req.params.id);
+  if (!result) return res.status(404).json({ error: 'Game not found' });
+  res.json({ ok: true, saved: result.saved });
+});
+
 // Delete a single game
 api.delete('/games/:id', (req, res) => {
   // Don't allow deleting running games
