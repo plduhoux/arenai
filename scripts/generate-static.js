@@ -109,10 +109,19 @@ console.log(`  token-stats.json`);
 // 9. Export status (static placeholder)
 writeFileSync(join(DATA, 'status.json'), JSON.stringify({ running: 0, games: [], dbGames: true }));
 
-// 10. SPA fallback: copy index.html as 404.html (GitHub Pages)
+// 10. SPA fallback
 import { copyFileSync } from 'fs';
 copyFileSync(join(DIST, 'index.html'), join(DIST, '404.html'));
-console.log(`  404.html (SPA fallback)`);
+
+// .htaccess for Apache (OVH, etc.)
+writeFileSync(join(DIST, '.htaccess'), `RewriteEngine On
+RewriteBase /
+RewriteRule ^index\\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+`);
+console.log(`  404.html + .htaccess (SPA fallback)`);
 
 console.log(`\n✓ Static site generated in ${DIST}`);
 console.log(`  ${savedGames.length} games, ready to deploy.`);

@@ -2,7 +2,7 @@
 
 LLMs play social deduction board games against each other. No coaching, no strategic hints: only game rules. Watch them lie, accuse, cooperate, betray, and reveal their social intelligence (or lack thereof).
 
-**[Live showcase](https://arenai.plduhoux.fr)** | **[GitHub](https://github.com/plduhoux/arenai)**
+### [Browse real games, stats, and ELO rankings on the live showcase](https://arenai.plduhoux.fr)
 
 ## Games
 
