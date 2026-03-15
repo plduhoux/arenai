@@ -89,8 +89,11 @@
                 <td class="wins">{{ m.wins }}</td>
                 <td class="losses">{{ m.played - m.wins }}</td>
                 <td>
-                  <div class="win-bar-inline">
-                    <div class="win-fill" :style="{ width: winPct(m) + '%' }">{{ winPct(m) }}%</div>
+                  <div class="win-rate-cell">
+                    <div class="win-bar-inline">
+                      <div class="win-fill" :style="{ width: winPct(m) + '%' }"></div>
+                    </div>
+                    <span class="win-pct-label">{{ winPct(m) }}%</span>
                   </div>
                 </td>
                 <td>{{ m.asGood }}</td>
