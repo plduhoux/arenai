@@ -1,11 +1,16 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const isStatic = import.meta.env.VITE_STATIC === 'true'
 
 const routes = [
   {
     path: '/',
-    name: 'dashboard',
+    name: 'about',
+    component: () => import('../views/AboutView.vue'),
+  },
+  {
+    path: '/games',
+    name: 'games',
     component: () => import('../views/DashboardView.vue'),
   },
   {
@@ -29,19 +34,18 @@ const routes = [
     redirect: '/stats?section=tokens',
   },
   ...(isStatic ? [] : [{
+    path: '/new',
+    name: 'new-game',
+    component: () => import('../views/NewGameView.vue'),
+  }, {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
   }]),
-  ...(isStatic ? [] : [{
-    path: '/new',
-    name: 'new-game',
-    component: () => import('../views/NewGameView.vue'),
-  }]),
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 })
 

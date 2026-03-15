@@ -9,7 +9,7 @@
  */
 
 import { execSync } from 'child_process';
-import { mkdirSync, writeFileSync, cpSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,7 +26,7 @@ import { getTokenStats, getTokenGameTypes } from '../server/token-stats.js';
 console.log('ArenAI Static Generator');
 console.log('=======================\n');
 
-// 1. Get saved games
+// 1. Check saved games
 const savedGames = db.listSavedGames();
 console.log(`Found ${savedGames.length} saved game(s)`);
 
@@ -35,11 +35,20 @@ if (savedGames.length === 0) {
   process.exit(0);
 }
 
-// 2. Create output directories
+// 2. Build Vue app FIRST (Vite cleans the output dir)
+console.log('\nBuilding frontend (static mode)...');
+execSync(`npx vite build --outDir ${DIST}`, {
+  cwd: join(ROOT, 'client'),
+  stdio: 'inherit',
+  env: { ...process.env, VITE_STATIC: 'true' },
+});
+
+// 3. Generate data AFTER build (so Vite doesn't delete it)
+console.log('\nExporting data...');
 mkdirSync(DATA, { recursive: true });
 mkdirSync(join(DATA, 'games'), { recursive: true });
 
-// 3. Export game list (same format as /api/games)
+// 4. Export game list
 const gameList = savedGames.map(g => ({
   id: g.id,
   model: g.model,
@@ -64,32 +73,30 @@ const gameList = savedGames.map(g => ({
 writeFileSync(join(DATA, 'games.json'), JSON.stringify(gameList, null, 2));
 console.log(`  games.json (${gameList.length} games)`);
 
-// 4. Export each game + its logs
+// 5. Export each game + its logs
 for (const game of savedGames) {
   const gameDir = join(DATA, 'games', game.id);
   mkdirSync(gameDir, { recursive: true });
 
-  // Game detail
   const detail = db.getGame(game.id);
   writeFileSync(join(DATA, 'games', `${game.id}.json`), JSON.stringify(detail, null, 2));
 
-  // Game logs
   const logs = db.getGameLogs(game.id);
   writeFileSync(join(gameDir, 'logs.json'), JSON.stringify(logs, null, 2));
 }
 console.log(`  Individual game data exported`);
 
-// 5. Export stats (all + per game type)
+// 6. Export stats
 const statsAll = db.getStats();
 writeFileSync(join(DATA, 'stats.json'), JSON.stringify(statsAll, null, 2));
 console.log(`  stats.json`);
 
-// 6. Export ELO
+// 7. Export ELO
 const eloData = elo.getEloRankings();
 writeFileSync(join(DATA, 'elo.json'), JSON.stringify(eloData, null, 2));
 console.log(`  elo.json`);
 
-// 7. Export token stats
+// 8. Export token stats
 const gameTypes = getTokenGameTypes();
 const tokenAll = getTokenStats();
 const tokenByGame = {};
@@ -99,26 +106,14 @@ for (const gt of gameTypes) {
 writeFileSync(join(DATA, 'token-stats.json'), JSON.stringify({ ...tokenAll, byGame: tokenByGame, gameTypes }, null, 2));
 console.log(`  token-stats.json`);
 
-// 8. Export status (static)
+// 9. Export status (static placeholder)
 writeFileSync(join(DATA, 'status.json'), JSON.stringify({ running: 0, games: [], dbGames: true }));
 
-// 9. Build Vue app in static mode
-console.log('\nBuilding frontend (static mode)...');
-execSync('npx vite build', {
-  cwd: join(ROOT, 'client'),
-  stdio: 'inherit',
-  env: { ...process.env, VITE_STATIC: 'true' },
-});
-
-// 10. Copy built assets to dist
-// Vite outputs to ../public/ (relative to client/)
-// We need to copy public/* to dist/
-const publicDir = join(ROOT, 'public');
-cpSync(publicDir, DIST, { recursive: true });
-console.log('\nCopied built assets to dist/');
-
-// Data files are already in dist/data/
+// 10. SPA fallback: copy index.html as 404.html (GitHub Pages)
+import { copyFileSync } from 'fs';
+copyFileSync(join(DIST, 'index.html'), join(DIST, '404.html'));
+console.log(`  404.html (SPA fallback)`);
 
 console.log(`\n✓ Static site generated in ${DIST}`);
 console.log(`  ${savedGames.length} games, ready to deploy.`);
-console.log(`\n  Test locally: cd dist && npx serve .`);
+console.log(`\n  Test locally: cd dist && python3 -m http.server 8086`);

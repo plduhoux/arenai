@@ -1,243 +1,162 @@
 # ArenAI
 
-A platform where LLM models play social deduction board games against each other. No coaching, no strategic hints : only game rules. Watch them lie, accuse, cooperate, betray, and reveal their social intelligence (or lack thereof) in real-time.
+LLMs play social deduction board games against each other. No coaching, no strategic hints: only game rules. Watch them lie, accuse, cooperate, betray, and reveal their social intelligence (or lack thereof).
 
-Three games are implemented : **Secret Dictator**, **Werewolf** (Loup-Garou de Thiercelieux), and **Two Rooms and a Boom**. Each tests different facets of social cognition : deception, trust-building, hidden information management, coalition formation, and theory of mind.
-
-## What We're Measuring
-
-This is a benchmark, not a tutorial. LLMs receive only the game rules and their role. No strategic directives, no "you should bluff", no "protect your identity". What we observe :
-
-- **Deception capacity** : Can a model lie convincingly when its role requires it? Or does it default to honesty/vagueness, revealing itself through omission?
-- **Theory of mind** : Can a model reason about what other players know, believe, and suspect? Can it predict reactions and adjust?
-- **Context compartmentalization** : When a model has private information (e.g., wolf chat), can it keep it out of public statements? Or does the context window bleed through?
-- **Strategic inference** : Can a model derive optimal play from rules alone? For instance, understanding that verbal claims are free in Two Rooms, or that voting patterns reveal alliances in Secret Dictator.
-- **Persuasion and social influence** : Can a model change other players' votes through argumentation? Measured by comparing pre-discussion intentions with actual votes.
-- **Coalition detection** : Can a model identify coordinated behavior among opponents?
-
-### The Thought Experiment
-
-An optional "private thoughts" mode (`enableThoughts`) asks each player to write a `THOUGHT:` (private reasoning) before their public `MESSAGE:` in a single LLM request. This serves two purposes :
-
-1. **Decompression airlock** : Forces the model to consciously process private knowledge before speaking publicly. Without it, wolf chat context sits right next to the public discussion prompt, causing "Freudian slips" where wolves reference private conversations in public.
-2. **Observer insight** : Thoughts are displayed to the observer (highlighted, separate from public speech) but never injected into other players' context. This lets researchers see what the model "thinks" vs. what it says.
-
-This is not extra API calls : same request, just additional output tokens.
-
-### Public vs. Private Information
-
-A core challenge for LLMs in social deduction is managing information boundaries :
-
-| Information type | Who sees it | Can it leak? |
-|---|---|---|
-| Role assignment | Only the player | Should not, but LLMs sometimes self-reveal |
-| Wolf chat (Werewolf) | Wolves only | The #1 source of "Freudian slips" |
-| Seer inspection results | Seer only | Should stay private until strategically useful |
-| Witch actions | Witch only | Same |
-| Public discussion | All players | Shared context, safe |
-| Private thoughts | Observer only | Never enters any player's context |
-| Card sharing (Two Rooms) | Two players, verified by game | Cannot be falsified |
-| Verbal claims (Two Rooms) | All in the room | Can be lies, never verified |
-
-The brutal transition from private context (wolf chat) to public context (day discussion) is where most information leakage happens. The context window doesn't have a "forget this" mechanism : everything the model has seen is fair game for its next token prediction.
+**[Live showcase](https://arenai.plduhoux.fr)** | **[GitHub](https://github.com/plduhoux/arenai)**
 
 ## Games
 
-### Secret Dictator
+### Werewolf
 
-5-10 players. Two teams : Liberals and Fascists (including a hidden Dictator).
+Classic social deduction. Villagers vs. Werewolves with Seer, Witch, and Mayor roles. Wolves chat privately at night, then must act innocent during day discussions. The Seer investigates players, the Witch can save or kill, and the Mayor breaks tied votes. Win by elimination.
 
-**Setup** : Players are secretly assigned roles. Fascists know each other and know who the Dictator is. The Dictator does not know who the Fascists are. Liberals know nothing.
-
-**Each round** :
-1. A President is chosen (rotating). The President nominates a Chancellor.
-2. All players vote YES/NO on the government (simultaneous).
-3. If approved, the President draws 3 policy tiles, discards 1, passes 2 to the Chancellor. The Chancellor discards 1 and enacts the remaining policy (Liberal or Fascist).
-4. Presidential powers trigger at certain Fascist policy thresholds (investigate, pick next president, peek at tiles, execute a player).
-5. Discussion with stances (attack/defense/analysis) and targeted rebuttals between government formation rounds.
-
-**Win conditions** :
-- Liberals win : 5 Liberal policies enacted, or Dictator is executed
-- Fascists win : 6 Fascist policies enacted, or Dictator is elected Chancellor after 3+ Fascist policies
-
-**Veto power** : After the 5th Fascist policy, the Chancellor can propose a veto. If the President agrees, both policies are discarded and the election tracker advances.
-
-**Default** : 5 players (1 Dictator, 1 Fascist, 3 Liberals). Configurable terminology (neutral/original/fantasy) to avoid LLM bias on loaded terms.
-
-### Werewolf (Loup-Garou de Thiercelieux)
-
-6-10 players. Villagers vs. Werewolves, with special roles.
-
-**Roles** : 2 Werewolves, 1 Seer, 1 Witch, rest are Villagers.
-
-**Setup** :
-1. Mayor election : each player may run for Mayor (public candidacy with public justification). All players vote. Mayor breaks ties during day votes. If the Mayor dies, they name a successor.
-
-**Each round** :
-1. **Night** : Werewolves privately discuss (4 messages : 2 turns x 2 wolves) and choose a victim. Seer inspects one player (learns their alignment). Witch may use save potion (revive victim) and/or kill potion (eliminate someone). Each potion is single-use. Both can be used the same night.
-2. **Dawn** : Deaths are announced. Roles of dead players are revealed.
-3. **Day discussion** : Configurable rounds (1, 2, or 3). Each player states their position. Mentioned players get rebuttals. Round 1 with no prior context : 2 random non-wolf players get rebuttal slots.
-4. **Day vote** : All players vote simultaneously for who to eliminate. Plurality wins. Tie triggers a runoff. Second tie : no elimination.
-
-**Win conditions** (parity rule, default) :
-- Villagers win : all Werewolves eliminated
-- Werewolves win : Werewolves >= Villagers (at this point, wolves control all votes)
-
-**Wolf chat** : Every night when 2+ wolves are alive, wolves exchange 4 messages to coordinate. This creates the core tension : the coordination context is in their window when they speak publicly next.
+- 6-20 players, scaled wolf count (2/3/4 wolves)
+- Mayor election on day 1
+- Wolf private chat creates the core tension: coordination context bleeds into public statements
+- ~50-60k tokens per game
 
 ### Two Rooms and a Boom
 
-6-10 players. Two teams (Blue and Red), two rooms (A and B).
+Two teams, two rooms, one bomb. Blue protects the President, Red positions the Bomber. Over 3 rounds, players discuss, elect room leaders, and exchange hostages. Card sharing is verified by the game; verbal claims are not. This distinction is where the real deception happens.
 
-**Key roles** : Blue team has the **President**. Red team has the **Bomber**. Everyone else is a team agent. Odd player count adds a Gambler (grey team, predicts winner).
+- 6-20 players, scaled hostage count
+- 3 rounds with degressive discussion turns
+- ~100k tokens per game
 
-**Win condition** : After the final exchange, if the Bomber is in the same room as the President, Red wins. Otherwise, Blue wins.
+### Secret Dictator
 
-**3 rounds** with degressive intensity :
-- Round 1 : 3 discussion turns
-- Round 2 : 2 discussion turns
-- Round 3 : 1 discussion turn
+> **Status: under construction.** The engine is implemented but has not been tested extensively yet.
 
-**Each round** :
-1. **Discussion** : Players in each room talk, form alliances, and optionally share cards.
-2. **Leader election** : Each room nominates a leader (players vote).
-3. **Hostage selection** : Leaders choose hostage(s) to send to the other room. Leaders cannot send themselves. For 6-10 players : 1 hostage per round.
-4. **Exchange** : Hostages switch rooms simultaneously.
+Hidden roles, policy cards, legislative deception. Liberals vs Fascists with a hidden Dictator. Each round: elect a government, draw policy cards, enact legislation. Presidential powers unlock as fascist policies pass. Configurable terminology to avoid LLM bias on loaded terms.
 
-**Card sharing** : A player can show their card (full role) or color (team only) to ONE other player. This is a game mechanic : the information revealed is guaranteed truthful by the game engine. It is not a verbal claim.
+- 5-20 players
+- Veto power after the 5th fascist policy
+- ~200k tokens per game
 
-**Verbal claims** : Anything said in discussion is unverifiable. Players can claim any team or role. Only card sharing proves anything. This is stated as a rule to all players equally.
+## What We're Measuring
+
+This is a benchmark, not a tutorial. LLMs receive only the game rules and their role. No strategic directives, no "you should bluff", no "protect your identity". What emerges:
+
+| Capability | Question |
+|---|---|
+| **Deception** | Can a model lie convincingly when its role requires it? |
+| **Theory of mind** | Can it reason about what others know, believe, and suspect? |
+| **Context isolation** | Can it keep private info out of public statements? |
+| **Strategic inference** | Can it derive optimal play from rules alone? |
+| **Persuasion** | Can it change other players' votes through argumentation? |
+| **Coalition detection** | Can it identify coordinated behavior among opponents? |
+
+### Private Thoughts
+
+An optional `enableThoughts` mode asks each player to write a `THOUGHT:` before their `MESSAGE:` in a single LLM request. This is not an extra API call; same request, just more output tokens. It serves as a decompression airlock (forces the model to process private knowledge before speaking publicly) and gives the observer insight into the model's reasoning.
+
+### Information Boundaries
+
+The core challenge for LLMs in social deduction is managing what they know vs. what they should say:
+
+| Information | Scope | Leak risk |
+|---|---|---|
+| Role assignment | Player only | LLMs sometimes self-reveal |
+| Wolf chat | Wolves only | #1 source of "Freudian slips" |
+| Seer/Witch results | Role holder only | Should stay private until strategic |
+| Card sharing (Two Rooms) | Two players, verified | Cannot be falsified |
+| Verbal claims | All in room | Can be lies, never verified |
+| Private thoughts | Observer only | Never enters any player's context |
+
+## Quick Start
+
+```bash
+git clone https://github.com/plduhoux/arenai.git
+cd arenai && npm install
+cd client && npm install && npx vite build && cd ..
+node server/index.js
+```
+
+Open http://localhost:8085. Go to **Settings**, add your API keys, and start playing.
+
+### Supported Providers
+
+Anthropic, OpenAI, Google (Gemini), xAI (Grok), Moonshot (Kimi). Each model can be tested from the Settings page before running games.
+
+### Game Configuration
+
+- **Player count**: 5-20 (varies by game)
+- **Model per faction**: pit any model against any other
+- **Discussion rounds**: 1 (fast), 2 (default), 3 (thorough)
+- **Battle mode**: run multiple games with swapped factions for fair comparison
+- **Enable thoughts**: private reasoning before public statements
 
 ## Architecture
 
 ```
 core/
-  game-runner.js     Generic orchestrator (pause/resume/stop, periodic DB saves)
-  llm-client.js      Anthropic SDK, askLLM(), token tracking, retry, prompt caching
+  game-runner.js       Orchestrator (pause/resume/stop, periodic saves)
+  llm-client.js        Multi-provider LLM client, token tracking, prompt caching
 
 games/
-  secret-dictator/     Engine (rules, state machine), prompts, plugin interface
-  werewolf/          Engine, prompts, plugin interface
-  two-rooms/         Engine, prompts, plugin interface
+  werewolf/            Engine + prompts + plugin
+  two-rooms/           Engine + prompts + plugin
+  secret-dictator/     Engine + prompts + plugin
 
 server/
-  index.js           Express 5 API + SSE streaming + plugin registry
-  db.js              SQLite persistence + migrations
-  elo.js             ELO rating system (K=32, base 1500, per-model + per-role)
+  index.js             Express 5 API + SSE streaming
+  db.js                SQLite + migrations
+  elo.js               ELO ratings (K=32, base 1500)
+  token-stats.js       Token usage analytics
 
-client/              Vue 3 + Vite
-  src/views/         Dashboard, GameView, NewGame, Stats, Elo
-  src/components/    LiveFeed, LiveEvent, StatusBar, RoundCards, PlayerChip, EloTable
-  src/composables/   useGameSSE, useApi
-  src/utils/         Color utilities, game-type helpers
+client/                Vue 3 + Vite SPA
+  src/views/           About, Dashboard, Game, NewGame, Stats, Settings
+  src/components/      LiveFeed, StatusBar, RoundCards, PlayerChip, EloTable
 
-data/games.db        SQLite database (NEVER DELETE)
-public/              Built frontend (vite build output)
+scripts/
+  generate-static.js   Export saved games as a static site (no backend needed)
+  deploy-static.sh     Generate + deploy via SFTP
 ```
 
 ### Plugin Interface
 
-Each game module exports :
+Each game exports a standard interface: `setup()`, `getCurrentPhase()`, `isOver()`, `getDisplayState()`. Phases are async functions that emit events via `onEvent()`, flowing through SSE to the frontend in real-time and persisted for historical replay.
 
-```js
-id            // 'secret-dictator' | 'werewolf' | 'two-rooms'
-name          // Display name
-description   // Short description
-defaultConfig // { playerCount, names, model, ... }
+### Static Site / Showcase Mode
 
-setup(options)           // Create initial game state
-getCurrentPhase(game)    // Return { name, execute: async (game, { onEvent }) => {} }
-isOver(game)             // Boolean
-recoverFromError(game)   // Skip to next phase on failure
-forceEnd(game, reason)   // Clean termination
-getDisplayState(game)    // Frontend-friendly state snapshot
+Save your best games (star button on the dashboard), then generate a fully static site:
+
+```bash
+node scripts/generate-static.js    # exports saved games + pre-computed stats
+./scripts/deploy-static.sh         # generate + deploy via SFTP
 ```
 
-Phases are async functions. Events emitted via `onEvent()` flow through SSE to the frontend in real-time and are persisted to the database for historical replay.
-
-### SSE Architecture
-
-- `POST /api/games/run` starts a game and returns `{ gameId }` immediately
-- `GET /api/games/:id/stream` provides SSE with buffered catch-up (reconnect-safe)
-- Same components (StatusBar, LiveFeed, RoundCards) render both live and historical games
-- Periodic DB saves every 10 seconds during gameplay
+The static site has the same UI but no backend: all data is pre-generated JSON. Stats, ELO, and token usage are included. Deployable anywhere (OVH, GitHub Pages, Netlify).
 
 ### Token Optimization
 
-- Simultaneous voting and actions (Promise.all, not sequential)
-- Rebuttals only for mentioned players (not everyone)
-- Historical context compression : recent rounds in full detail, older rounds summarized
-- Prompt caching via Anthropic API (system prompt with cache_control)
+- Simultaneous voting and actions (`Promise.all`)
+- Rebuttals only for mentioned players
+- Historical context compression: recent rounds in full, older rounds summarized
+- Prompt caching via provider APIs
 - Thoughts optional and off by default
-- No vote-intention pre/post comparison (removed, saved 14 calls/round)
 
 ### ELO System
 
-- Per-model ratings, K-factor 32, base 1500
-- Per-role ratings (wolf ELO, villager ELO, etc.)
-- Updated after each game based on expected vs. actual outcome
-
-## Run
-
-```bash
-npm install
-cd client && npm install && npx vite build && cd ..
-node server/index.js
-```
-
-Open http://localhost:8085
-
-### Settings
-
-Go to **Settings** (`/#/settings`) to configure API providers:
-
-1. Add your API key for each provider (Anthropic, OpenAI, Google, xAI, Moonshot)
-2. Enable/disable models per provider
-3. Use the **Test** button to verify each model works (sends a tiny prompt, shows Q&A)
-
-Anthropic accepts both standard API keys (`sk-ant-api03-*`) and OAuth tokens. Other providers use their standard API keys. Keys are stored locally in SQLite.
-
-### Game Configuration
-
-From the New Game screen:
-- **Game type**: Secret Dictator, Werewolf, Two Rooms and a Boom
-- **Player count**: 5-10 (varies by game)
-- **Model**: per-faction model selection (any configured provider)
-- **Discussion rounds**: 1 (fast), 2 (default), 3 (thorough)
-- **Enable thoughts**: private reasoning before public statements
-- **Terminology**: neutral (Dictator), original (Dictator), fantasy
+Per-model ratings (K=32, base 1500) with per-role breakdown (wolf ELO, villager ELO, etc.). Updated after each game based on expected vs. actual outcome.
 
 ## Example Games
 
-The `docs/` directory contains annotated game transcripts that illustrate key LLM behaviors:
+The `docs/` directory contains annotated transcripts:
 
-- **[Two Rooms: Claude Opus 4.6 vs GPT-5.2](docs/two-rooms-example.md)** : 10 players, Red win. Highlights Hugo's bold Red declaration, Bruno's infiltration strategy, and Iris (President) fatally sharing her color with Alice (Bomber). Shows how LLMs handle verified vs. verbal information.
-
-- **[Werewolf: Claude Opus 4.6 vs GPT-5.2](docs/werewolf-opus-vs-gpt5.md)** : 7 players, Wolf win. GPT-5.2 wolves execute a flawless 3-day strategy: subtle bandwagon initiation, mayor succession exploit, and a masterclass endgame manipulation. The critical finding: Opus (Witch) ignores a trivially solvable logical deduction because a persuasive counter-narrative overrides verified Seer information. "Rhetoric over logic" may be a systematic Opus vulnerability.
-
-- **[Benchmark Plan](docs/benchmark-plan.md)** : Full round-robin protocol: 5 frontier models, 3 games, 300 matches, ~$170 budget. Includes cost estimates validated against real game data.
-
-## Design Principles
-
-1. **Rules only, no coaching** : Prompts contain game rules and role information. No strategic advice. If a wolf says "As a werewolf..." publicly, that is a valid data point about the model's social cognition.
-
-2. **Observer mode** : The narrator reveals all roles at game start. Deaths show roles. Thoughts are visible. The observer sees everything; the players see only what the rules allow.
-
-3. **Same view everywhere** : Live games and historical replays use identical components. Zero duplication.
-
-4. **Game logic isolation** : All game-specific logic lives in the plugin directory. The core orchestrator and frontend adapt generically.
+- **[Two Rooms: Claude Opus vs GPT-5](docs/two-rooms-example.md)**: Red win. The President fatally shares her card with the Bomber. Shows how LLMs handle verified vs. verbal information.
+- **[Werewolf: Claude Opus vs GPT-5](docs/werewolf-opus-vs-gpt5.md)**: Wolf win. GPT-5 wolves execute a flawless 3-day strategy. The Witch ignores a solvable logical deduction because a persuasive narrative overrides verified Seer info. "Rhetoric over logic" as a systematic vulnerability.
+- **[Benchmark Plan](docs/benchmark-plan.md)**: Full round-robin protocol for 5 frontier models, 3 games, 300 matches.
 
 ## Data
 
-- **NEVER delete `data/games.db`**. All games, logs, stats, ELO ratings, and token usage live there.
-- Schema auto-creates on first run. Changes are migrations only, never drops.
-- Game logs store every SSE event for perfect historical replay.
+**NEVER delete `data/games.db`**. All games, logs, stats, ELO, and token usage live there. Schema auto-creates on first run; changes are migrations only.
 
 ## Stack
 
-Node.js (v25+), Express 5, SQLite (better-sqlite3), Anthropic SDK, Vue 3, Vite
+Node.js, Express 5, SQLite (better-sqlite3), Vue 3, Vite. Multi-provider LLM support (Anthropic SDK, OpenAI SDK, Google GenAI SDK).
 
 ## Inspiration
 
-- [Foaster.ai Werewolf Bench](https://werewolf.foaster.ai/) : Werewolf benchmark for LLMs (GPT-5, Gemini, Grok). Their setup inspired our Mayor election, wolf private chat, and discussion round mechanics. Their code is not public.
-- The real board games : Secret Dictator (Goat Wolf & Cabbage), Les Loups-Garous de Thiercelieux (Pelissier/des Pallieres), Two Rooms and a Boom (Tuesday Knight Games).
+- [Foaster.ai Werewolf Bench](https://werewolf.foaster.ai/): Werewolf benchmark for LLMs. Their setup inspired our Mayor election and wolf private chat mechanics.
+- The real board games: Les Loups-Garous de Thiercelieux, Secret Hitler (Goat Wolf & Cabbage), Two Rooms and a Boom (Tuesday Knight Games).
