@@ -60,12 +60,17 @@
         <span class="status-value">{{ state.apiCalls }}</span>
       </div>
     </div>
-    <div v-if="matchup" class="status-matchup-row">
-      <span class="matchup-faction matchup-good">{{ matchup.goodLabel }}</span>
-      <span class="matchup-model-tag">{{ matchup.goodModel }}</span>
-      <span class="matchup-vs">vs</span>
-      <span class="matchup-faction matchup-evil">{{ matchup.evilLabel }}</span>
-      <span class="matchup-model-tag">{{ matchup.evilModel }}</span>
+    <div v-if="matchup" class="status-matchup-block">
+      <div class="status-matchup-row">
+        <span class="matchup-faction matchup-good">{{ matchup.goodLabel }}</span>
+        <span class="matchup-vs">vs</span>
+        <span class="matchup-faction matchup-evil">{{ matchup.evilLabel }}</span>
+      </div>
+      <div class="status-matchup-models">
+        <span class="matchup-model-tag matchup-good">{{ matchup.goodModel }}</span>
+        <span class="matchup-vs">vs</span>
+        <span class="matchup-model-tag matchup-evil">{{ matchup.evilModel }}</span>
+      </div>
     </div>
     <div v-if="state.status === 'finished'" class="status-result">
       <span :class="isGoodWinner ? 'liberal' : 'fascist'">

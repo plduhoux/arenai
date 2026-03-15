@@ -21,16 +21,15 @@ const routes = [
     path: '/stats',
     name: 'stats',
     component: () => import('../views/StatsView.vue'),
+    props: route => ({ section: route.query.section || 'statistics' }),
   },
   {
     path: '/elo',
-    name: 'elo',
-    component: () => import('../views/EloView.vue'),
+    redirect: '/stats?section=elo',
   },
   {
     path: '/tokens',
-    name: 'tokens',
-    component: () => import('../views/TokenStatsView.vue'),
+    redirect: '/stats?section=tokens',
   },
   {
     path: '/settings',

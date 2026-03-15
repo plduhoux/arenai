@@ -11,6 +11,16 @@ const ROLE_DISTRIBUTION = {
   8:  { liberals: 5, fascists: 2, dictator: 1 },
   9:  { liberals: 5, fascists: 3, dictator: 1 },
   10: { liberals: 6, fascists: 3, dictator: 1 },
+  11: { liberals: 7, fascists: 3, dictator: 1 },
+  12: { liberals: 7, fascists: 4, dictator: 1 },
+  13: { liberals: 8, fascists: 4, dictator: 1 },
+  14: { liberals: 9, fascists: 4, dictator: 1 },
+  15: { liberals: 9, fascists: 5, dictator: 1 },
+  16: { liberals: 10, fascists: 5, dictator: 1 },
+  17: { liberals: 11, fascists: 5, dictator: 1 },
+  18: { liberals: 11, fascists: 6, dictator: 1 },
+  19: { liberals: 12, fascists: 6, dictator: 1 },
+  20: { liberals: 13, fascists: 6, dictator: 1 },
 };
 
 // Presidential powers by player count bracket
@@ -52,7 +62,7 @@ const DEFAULT_TERMS = {
 
 export function createGame(playerNames, options = {}) {
   const count = playerNames.length;
-  if (count < 5 || count > 10) throw new Error('Need 5-10 players');
+  if (count < 5 || count > 20) throw new Error('Need 5-20 players');
 
   const terms = { ...DEFAULT_TERMS, ...options.terms };
 

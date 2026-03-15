@@ -149,8 +149,12 @@ export function executeExchange(game) {
 }
 
 export function getHostageCount(game) {
-  // Simple mode, 6-10 players: always 1 hostage per round
-  return 1;
+  // Scale hostages with player count
+  // 6-10: 1, 11-14: 2, 15-20: 3
+  const count = game.players.length;
+  if (count <= 10) return 1;
+  if (count <= 14) return 2;
+  return 3;
 }
 
 export function checkWin(game) {

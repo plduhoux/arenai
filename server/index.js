@@ -51,6 +51,85 @@ api.get('/gametypes', (req, res) => {
   })));
 });
 
+api.get('/token-estimates', (req, res) => {
+  try {
+  // Average tokens per game type, per model (from finished games)
+  const rawDb = db.getDb();
+  const games = rawDb.prepare(`
+    SELECT game_type, players, session_stats,
+           tokens_input, tokens_output,
+           tokens_cache_read, tokens_cache_write
+    FROM games WHERE status = 'finished'
+  `).all();
+
+  // Accumulate: { gameType -> { model -> { totalTokens, count } } }
+  const acc = {};
+  for (const g of games) {
+    const gt = g.game_type;
+    if (!acc[gt]) acc[gt] = {};
+    const players = JSON.parse(g.players || '[]');
+    const sessionStats = g.session_stats ? JSON.parse(g.session_stats) : null;
+
+    if (sessionStats) {
+      for (const [key, stats] of Object.entries(sessionStats)) {
+        if (!stats.tokens) continue;
+        const match = key.match(/^player:(\d+):/);
+        if (!match) continue;
+        const player = players[parseInt(match[1])];
+        if (!player?.model) continue;
+        const model = player.model;
+        if (!acc[gt][model]) acc[gt][model] = { total: 0, input: 0, output: 0, count: 0 };
+        const t = stats.tokens;
+        acc[gt][model].input += (t.input || 0);
+        acc[gt][model].output += (t.output || 0);
+        acc[gt][model].total += (t.input || 0) + (t.output || 0);
+      }
+      // Count once per model per game
+      const seen = new Set();
+      for (const p of players) {
+        if (p.model && !seen.has(p.model)) {
+          seen.add(p.model);
+          if (acc[gt][p.model]) acc[gt][p.model].count++;
+        }
+      }
+    } else if (g.tokens_input || g.tokens_output) {
+      const modelCounts = {};
+      for (const p of players) {
+        if (p.model) modelCounts[p.model] = (modelCounts[p.model] || 0) + 1;
+      }
+      const totalP = Object.values(modelCounts).reduce((a, b) => a + b, 0);
+      for (const [model, cnt] of Object.entries(modelCounts)) {
+        if (!acc[gt][model]) acc[gt][model] = { total: 0, input: 0, output: 0, count: 0 };
+        const ratio = cnt / totalP;
+        acc[gt][model].input += Math.round((g.tokens_input || 0) * ratio);
+        acc[gt][model].output += Math.round((g.tokens_output || 0) * ratio);
+        acc[gt][model].total += Math.round(((g.tokens_input || 0) + (g.tokens_output || 0)) * ratio);
+        acc[gt][model].count++;
+      }
+    }
+  }
+
+  // Format: { gameType: { model: { avgTotal, avgInput, avgOutput, gamesPlayed } } }
+  const result = {};
+  for (const [gt, models] of Object.entries(acc)) {
+    result[gt] = {};
+    for (const [model, data] of Object.entries(models)) {
+      if (data.count === 0) continue;
+      result[gt][model] = {
+        avgTotal: Math.round(data.total / data.count),
+        avgInput: Math.round(data.input / data.count),
+        avgOutput: Math.round(data.output / data.count),
+        gamesPlayed: data.count,
+      };
+    }
+  }
+  res.json(result);
+  } catch (err) {
+    console.error('token-estimates error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 api.get('/elo', (req, res) => res.json(elo.getEloRankings()));
 api.get('/elo/:model', (req, res) => res.json(elo.getEloHistory(decodeURIComponent(req.params.model))));
 api.get('/stats', (req, res) => res.json(db.getStats(req.query.gameType)));

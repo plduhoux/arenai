@@ -15,9 +15,15 @@ const ROLES = {
   villager: { party: 'villager', name: 'Villager' },
 };
 
-// Role distribution: always 2 wolves, 1 seer, 1 witch, rest villagers
+// Role distribution: scales with player count
+// 6-10: 2 wolves, 1 seer, 1 witch, rest villagers
+// 11-14: 3 wolves, 1 seer, 1 witch, rest villagers
+// 15-20: 4 wolves, 1 seer, 1 witch, rest villagers
 function assignRoles(count) {
-  const roles = ['werewolf', 'werewolf', 'seer', 'witch'];
+  const wolfCount = count <= 10 ? 2 : count <= 14 ? 3 : 4;
+  const roles = [];
+  for (let i = 0; i < wolfCount; i++) roles.push('werewolf');
+  roles.push('seer', 'witch');
   while (roles.length < count) roles.push('villager');
   // Shuffle
   for (let i = roles.length - 1; i > 0; i--) {

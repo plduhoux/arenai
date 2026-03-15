@@ -21,7 +21,7 @@ export const description = 'Social deduction game where Liberal and Fascist fact
 
 export const defaultConfig = {
   playerCount: 5,
-  names: ['Ada', 'Blaise', 'Claude', 'Dijkstra', 'Euler', 'Turing', 'Lovelace', 'Knuth', 'Hopper', 'Babbage'],
+  names: ['Ada', 'Blaise', 'Claude', 'Dijkstra', 'Euler', 'Turing', 'Lovelace', 'Knuth', 'Hopper', 'Babbage', 'Ritchie', 'Liskov', 'Kernighan', 'Hoare', 'Backus', 'Gosling', 'Torvalds', 'Rossum', 'Wozniak', 'Hamilton'],
   model: 'claude-sonnet-4-5',
   terms: { liberal: 'Liberal', fascist: 'Fascist', dictator: 'Dictator' },
   enableThoughts: false,

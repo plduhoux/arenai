@@ -12,7 +12,7 @@ export const description = 'Classic social deduction: villagers hunt werewolves 
 
 export const defaultConfig = {
   playerCount: 7,
-  names: ['Alice', 'Bruno', 'Clara', 'David', 'Eva', 'Felix', 'Gina', 'Hugo', 'Iris', 'Jules'],
+  names: ['Alice', 'Bruno', 'Clara', 'David', 'Eva', 'Felix', 'Gina', 'Hugo', 'Iris', 'Jules', 'Karl', 'Luna', 'Max', 'Nina', 'Oscar', 'Petra', 'Quinn', 'Rosa', 'Sven', 'Tina'],
   model: 'claude-sonnet-4-5',
   enableThoughts: false,
   discussionRounds: 2,

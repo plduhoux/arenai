@@ -31,7 +31,6 @@
       <table class="games-table">
         <thead>
           <tr>
-            <th>Result</th>
             <th>Type</th>
             <th>Matchup</th>
             <th>Players</th>
@@ -48,14 +47,18 @@
             class="game-row"
             @click="$router.push(`/game/${g.id}`)"
           >
-            <td>
-              <span class="winner-badge" :class="winnerClass(g)">{{ winnerText(g) }}</span>
-            </td>
             <td class="type-cell">{{ gameTypeLabel(g.game_type) }}</td>
             <td class="matchup-cell">
-              <span :class="factionClass(g, 'good')" v-html="factionHtml(g, 'good')"></span>
-              <span class="matchup-vs">vs</span>
-              <span :class="factionClass(g, 'evil')" v-html="factionHtml(g, 'evil')"></span>
+              <div class="matchup-line">
+                <span :class="factionClass(g, 'good')">{{ factionLabel(g, 'good') }}</span>
+                <span class="matchup-vs">vs</span>
+                <span :class="factionClass(g, 'evil')">{{ factionLabel(g, 'evil') }}</span>
+              </div>
+              <div class="matchup-line matchup-models-line">
+                <span :class="'matchup-model ' + factionColorClass(g, 'good')">{{ factionModel(g, 'good') }}</span>
+                <span class="matchup-vs">vs</span>
+                <span :class="'matchup-model ' + factionColorClass(g, 'evil')">{{ factionModel(g, 'evil') }}</span>
+              </div>
             </td>
             <td class="center">{{ g.player_count || g.players?.length || '?' }}</td>
             <td class="center">{{ g.rounds || '?' }}</td>
@@ -153,13 +156,19 @@ function factionClass(g, side) {
   return `matchup-${side}${won ? ' matchup-winner' : ' matchup-loser'}`
 }
 
-function factionHtml(g, side) {
+function factionLabel(g, side) {
   const type = g.game_type || 'secret-dictator'
   const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-dictator']
+  return side === 'good' ? labels.good : labels.evil
+}
+
+function factionModel(g, side) {
   const { goodModel, evilModel } = getModels(g)
-  const label = side === 'good' ? labels.good : labels.evil
-  const model = side === 'good' ? goodModel : evilModel
-  return `${label} <span class="matchup-model">${shortModel(model)}</span>`
+  return shortModel(side === 'good' ? goodModel : evilModel)
+}
+
+function factionColorClass(g, side) {
+  return side === 'good' ? 'model-good' : 'model-evil'
 }
 
 const gameTypeFilters = computed(() => {
@@ -275,7 +284,15 @@ onMounted(async () => {
 .date-cell { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; }
 .type-cell { font-size: 0.85rem; }
 
-.matchup-cell { font-size: 0.85rem; white-space: nowrap; }
+.matchup-cell { font-size: 0.85rem; }
+.matchup-line { white-space: nowrap; }
+.matchup-models-line { margin-top: 0.1rem; }
+.matchup-model {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+.matchup-model.model-good { color: var(--liberal); }
+.matchup-model.model-evil { color: var(--fascist); }
 .matchup-vs { color: var(--text-secondary); margin: 0 0.4rem; font-size: 0.8rem; }
 .matchup-good, .matchup-evil {
   display: inline-block;
