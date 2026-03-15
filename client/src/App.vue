@@ -11,8 +11,8 @@
         <router-link to="/stats" active-class="active" @click="menuOpen = false">Stats</router-link>
         <router-link v-if="!isStatic" to="/settings" active-class="active" @click="menuOpen = false">Settings</router-link>
       </div>
+      <div v-if="menuOpen" class="nav-overlay" @click="menuOpen = false"></div>
     </nav>
-    <div v-if="menuOpen" class="nav-overlay" @click="menuOpen = false"></div>
     <main class="main-content">
       <router-view />
     </main>
