@@ -20,6 +20,10 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -27,6 +31,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -82,6 +88,7 @@ h3 { font-size: 1.1rem; }
   width: 100%;
   margin: 0 auto;
   padding: 1.5rem;
+  overflow-x: hidden;
   flex: 1;
 }
 

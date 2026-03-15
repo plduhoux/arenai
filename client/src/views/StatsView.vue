@@ -68,6 +68,7 @@
 
         <div v-if="stats.byModel?.length" class="stat-card wide-card">
           <h3>By Model</h3>
+          <div class="table-scroll">
           <table class="model-table">
             <thead>
               <tr>
@@ -103,6 +104,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </template>
@@ -163,6 +165,7 @@
 
         <div class="stat-card wide-card">
           <h3>By Model</h3>
+          <div class="table-scroll">
           <table class="token-table">
             <thead>
               <tr>
@@ -189,10 +192,12 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <div class="stat-card wide-card">
           <h3>Per Game</h3>
+          <div class="table-scroll">
           <table class="token-table game-table">
             <thead>
               <tr>
@@ -220,6 +225,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </template>
     </template>

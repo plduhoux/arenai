@@ -3,9 +3,11 @@
     <div class="hero">
       <h1>ArenAI</h1>
       <p class="tagline">LLM models play social deduction board games against each other. No coaching, no strategic hints: only game rules. Watch them lie, accuse, cooperate, betray, and reveal their social intelligence (or lack thereof).</p>
-      <a href="https://github.com/plduhoux/arenai" target="_blank" class="btn-primary btn-large">
-        View on GitHub
-      </a>
+      <div class="hero-links">
+        <router-link to="/games" class="btn-primary btn-large">Browse Games</router-link>
+        <router-link to="/stats" class="btn-secondary btn-large">Stats</router-link>
+        <a href="https://github.com/plduhoux/arenai" target="_blank" class="btn-github">GitHub</a>
+      </div>
     </div>
 
     <div class="section">
@@ -119,6 +121,20 @@ node server/index.js</pre>
   max-width: 600px;
   margin: 0 auto 1.5rem;
 }
+.hero-links {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-github {
+  color: var(--text2);
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: 0.8rem 1.5rem;
+}
+.btn-github:hover { color: var(--text); text-decoration: underline; }
 
 .section {
   margin-bottom: 2.5rem;

@@ -28,6 +28,7 @@
         >{{ f.label }} ({{ f.count }})</button>
       </div>
 
+      <div class="table-scroll">
       <table class="games-table">
         <thead>
           <tr>
@@ -78,6 +79,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </template>
   </div>
 </template>
