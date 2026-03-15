@@ -33,8 +33,8 @@ echo ""
 echo "Deploying to $FTP_HOST..."
 cd dist
 lftp -c "
-set sftp:auto-confirm yes
-open -u $FTP_USERNAME,$FTP_PASSWORD sftp://$FTP_HOST:22
+set ftp:ssl-allow yes
+open -u $FTP_USERNAME,$FTP_PASSWORD ftp://$FTP_HOST
 mirror -R --parallel=5 --no-perms . $FTP_PATH
 bye
 "
