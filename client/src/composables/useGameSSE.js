@@ -24,6 +24,8 @@ export function useGameSSE() {
     aliveWolves: 0,
     aliveVillagers: 0,
     aliveTotal: 0,
+    totalWolves: 0,
+    totalVillagers: 0,
     roomACount: 0,
     roomBCount: 0,
   })
@@ -43,6 +45,8 @@ export function useGameSSE() {
     if (event.aliveWolves !== undefined) state.value.aliveWolves = event.aliveWolves
     if (event.aliveVillagers !== undefined) state.value.aliveVillagers = event.aliveVillagers
     if (event.aliveTotal !== undefined) state.value.aliveTotal = event.aliveTotal
+    if (event.totalWolves !== undefined) state.value.totalWolves = event.totalWolves
+    if (event.totalVillagers !== undefined) state.value.totalVillagers = event.totalVillagers
     if (event.roomACount !== undefined) state.value.roomACount = event.roomACount
     if (event.roomBCount !== undefined) state.value.roomBCount = event.roomBCount
     if (event.tokensInput !== undefined) state.value.tokensInput = event.tokensInput

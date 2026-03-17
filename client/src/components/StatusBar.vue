@@ -32,11 +32,11 @@
         </div>
         <div class="status-item">
           <span class="status-label">Wolves</span>
-          <span class="status-value fascist">{{ state.aliveWolves }}</span>
+          <span class="status-value fascist">{{ state.aliveWolves }}<template v-if="state.totalWolves">/{{ state.totalWolves }}</template></span>
         </div>
         <div class="status-item">
           <span class="status-label">Villagers</span>
-          <span class="status-value liberal">{{ state.aliveVillagers }}</span>
+          <span class="status-value liberal">{{ state.aliveVillagers }}<template v-if="state.totalVillagers">/{{ state.totalVillagers }}</template></span>
         </div>
       </template>
       <!-- Two Rooms stats -->

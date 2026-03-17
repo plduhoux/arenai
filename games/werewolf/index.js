@@ -55,10 +55,14 @@ export function forceEnd(game, reason) {
 export function getDisplayState(game) {
   const aliveWolves = engine.getAliveByParty(game, 'werewolf').length;
   const aliveVillagers = engine.getAliveByParty(game, 'villager').length;
+  const totalWolves = game.players.filter(p => p.party === 'werewolf').length;
+  const totalVillagers = game.players.filter(p => p.party === 'villager').length;
   return {
     aliveWolves,
     aliveVillagers,
     aliveTotal: aliveWolves + aliveVillagers,
+    totalWolves,
+    totalVillagers,
     round: game.round,
     mayor: game.mayor !== null ? game.players[game.mayor]?.name : null,
   };
@@ -215,14 +219,29 @@ async function phaseNight(game, { onEvent, checkPause }) {
 
   // Witch (needs wolf target)
   const witchResult = await prompts.witchDecide(game, wolfTarget);
-  if (witchResult.thought) {
-    const witchIdx = game.players.findIndex(p => p.alive && p.role === 'witch');
-    if (witchIdx !== -1) onEvent({ type: 'thought', player: game.players[witchIdx].name, thought: witchResult.thought });
+  const witchIdx = game.players.findIndex(p => p.alive && p.role === 'witch');
+  if (witchResult.thought && witchIdx !== -1) {
+    onEvent({ type: 'thought', player: game.players[witchIdx].name, thought: witchResult.thought });
   }
   engine.setWitchAction(game, witchResult);
-  if (witchResult.save) onEvent({ type: 'witch_save' });
+  // Always emit witch_decision so the viewer sees what happened
+  const witchTarget = game.players[wolfTarget];
+  onEvent({
+    type: 'witch_decision',
+    witch: witchIdx !== -1 ? game.players[witchIdx].name : 'Witch',
+    wolfTarget: witchTarget.name,
+    wolfTargetRole: witchTarget.role,
+    wolfTargetParty: witchTarget.party,
+    saved: !!witchResult.save,
+    killTarget: witchResult.killTarget !== null ? game.players[witchResult.killTarget].name : null,
+    killTargetRole: witchResult.killTarget !== null ? game.players[witchResult.killTarget].role : null,
+    killTargetParty: witchResult.killTarget !== null ? game.players[witchResult.killTarget].party : null,
+  });
+  // Legacy events kept for backward compat
+  if (witchResult.save) onEvent({ type: 'witch_save', target: witchTarget.name, targetRole: witchTarget.role, targetParty: witchTarget.party });
   if (witchResult.killTarget !== null) {
-    onEvent({ type: 'witch_kill', target: game.players[witchResult.killTarget].name });
+    const wkTarget = game.players[witchResult.killTarget];
+    onEvent({ type: 'witch_kill', target: wkTarget.name, targetRole: wkTarget.role, targetParty: wkTarget.party });
   }
 
   // Resolve deaths
