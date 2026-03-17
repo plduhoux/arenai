@@ -1,5 +1,5 @@
 <template>
-  <div class="live-event" :class="eventClass">
+  <div v-if="content !== null" class="live-event" :class="eventClass">
     <component :is="'div'" v-html="content" />
   </div>
 </template>
@@ -9,7 +9,7 @@ import { computed } from 'vue'
 
 const ROLE_ICONS = {
   seer: '\uD83D\uDD2E',    // crystal ball
-  witch: '\u2697\uFE0F',    // alembic
+  witch: '\uD83E\uDDD9\u200D\u2640\uFE0F', // 🧙‍♀️
   president: '\uD83C\uDFDB\uFE0F',  // classical building
   bomber: '\uD83D\uDCA3',   // bomb
 }
@@ -22,6 +22,21 @@ const props = defineProps({
 function esc(s) {
   if (!s) return ''
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Strip markdown formatting from LLM output (bold, italic, headers, orphan asterisks)
+function strip(s) {
+  if (!s) return ''
+  return esc(s)
+    .replace(/\*{3}(.+?)\*{3}/g, '$1')  // ***bold+italic***
+    .replace(/\*\*(.+?)\*\*/g, '$1')    // **bold**
+    .replace(/\*(.+?)\*/g, '$1')         // *italic*
+    .replace(/__(.+?)__/g, '$1')         // __bold__
+    .replace(/_(.+?)_/g, '$1')           // _italic_
+    .replace(/^#{1,6}\s+/gm, '')         // # headers
+    .replace(/(^|:\s*)\*{1,3}\s+/gm, '$1') // orphan ** after line start or colon
+    .replace(/\s*\*{1,3}$/gm, '')        // orphan ** at line end
+    .trim()
 }
 
 // Colorize a player name based on their role
@@ -78,11 +93,11 @@ const content = computed(() => {
       return `<span class="live-label">Nominate</span> ${pname(e.president)} picks ${pname(e.chancellor)}`
 
     case 'thought':
-      return `<span class="live-label live-thought">Thought</span> ${pname(e.player)}: <span class="thought-text">${esc(e.message || e.thought)}</span>`
+      return `<span class="live-label live-thought">Thought</span> ${pname(e.player)}: <span class="thought-text">${strip(e.message || e.thought)}</span>`
 
     case 'discussion': {
       const stanceTag = e.stance ? ` <span class="stance-tag stance-${e.stance}">${e.stance}</span>` : ''
-      return `<span class="live-label">Discuss</span> ${pname(e.player)}${stanceTag}: ${esc(e.message)}`
+      return `<span class="live-label">Discuss</span> ${pname(e.player)}${stanceTag}: ${strip(e.message)}`
     }
 
     case 'vote': {
@@ -99,10 +114,10 @@ const content = computed(() => {
     }
 
     case 'president_action':
-      return `<span class="live-label">President</span> claims: ${esc(e.claim?.slice(0, 120))}`
+      return `<span class="live-label">President</span> claims: ${strip(e.claim?.slice(0, 120))}`
 
     case 'chancellor_action':
-      return `<span class="live-label">Chancellor</span> claims: ${esc(e.claim?.slice(0, 120))}`
+      return `<span class="live-label">Chancellor</span> claims: ${strip(e.claim?.slice(0, 120))}`
 
     case 'policy_enacted': {
       const cls = e.policy === 'liberal' ? 'live-liberal' : 'live-fascist'
@@ -155,7 +170,7 @@ const content = computed(() => {
 
     // Werewolf: Mayor election
     case 'mayor_candidacy':
-      return `<span class="live-label">${e.runs ? 'Runs' : 'Declines'}</span> ${pname(e.player)}: ${esc(e.reason)}`
+      return `<span class="live-label">${e.runs ? 'Runs' : 'Declines'}</span> ${pname(e.player)}: ${strip(e.reason)}`
 
     case 'mayor_vote':
       return `<span class="live-label">Mayor Vote</span> ${pname(e.voter)} votes for ${pname(e.pick)}`
@@ -168,7 +183,7 @@ const content = computed(() => {
 
     // Werewolf: Wolf chat
     case 'wolf_chat':
-      return `<span class="live-label live-fascist">Wolf Chat</span> ${pname(e.player)}: ${esc(e.message)}`
+      return `<span class="live-label live-fascist">Wolf Chat</span> ${pname(e.player)}: ${strip(e.message)}`
 
     // Werewolf events
     case 'night_start':
@@ -180,11 +195,22 @@ const content = computed(() => {
     case 'seer_action':
       return `<span class="live-label live-liberal">Seer</span> inspects ${pname(e.target)}: ${e.result === 'werewolf' ? '<span class="live-fascist">WEREWOLF</span>' : '<span class="live-liberal">VILLAGER</span>'}`
 
-    case 'witch_save':
-      return `<span class="live-label">Witch</span> uses save potion`
+    case 'witch_decision': {
+      const parts = [`<span class="live-label">${ROLE_ICONS.witch} Witch</span>`]
+      if (e.saved) {
+        parts.push(`saves ${pname(e.wolfTarget)}`)
+      } else {
+        parts.push(`lets ${pname(e.wolfTarget)} die`)
+      }
+      if (e.killTarget) {
+        parts.push(`and poisons ${pname(e.killTarget)}`)
+      }
+      return parts.join(' ')
+    }
 
+    case 'witch_save':
     case 'witch_kill':
-      return `<span class="live-label live-fascist">Witch</span> poisons ${pname(e.target)}`
+      return null // covered by witch_decision
 
     case 'dawn': {
       if (!e.deaths?.length) return `<span class="live-label live-liberal">Dawn</span> Everyone survived (Witch saved)`

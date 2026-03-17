@@ -9,18 +9,24 @@
       style="cursor: pointer"
     >
       <div class="rc-round">R{{ r.round }}</div>
-      <div class="rc-info">{{ r.info }}</div>
-      <div class="rc-result">
-        <span v-if="r.outcome === 'liberal'" class="rc-liberal">L</span>
-        <span v-else-if="r.outcome === 'fascist'" class="rc-fascist">F</span>
-        <span v-else-if="r.outcome === 'rejected'" class="rc-rejected">X</span>
-        <span v-else-if="r.outcome === 'chaos'" class="rc-chaos">!</span>
-        <span v-else-if="r.outcome === 'kill'" class="rc-fascist">K</span>
-        <span v-else-if="r.outcome === 'saved'" class="rc-liberal">S</span>
-        <span v-else-if="r.outcome === 'no-kill'" class="rc-rejected">-</span>
-        <span v-else class="rc-pending">...</span>
-      </div>
-      <div v-if="r.detail" class="rc-killed">{{ r.detail }}</div>
+      <!-- Secret Dictator / Two Rooms: simple text -->
+      <template v-if="gameType !== 'werewolf'">
+        <div class="rc-info">{{ r.info }}</div>
+        <div class="rc-result">
+          <span v-if="r.outcome === 'liberal'" class="rc-liberal">L</span>
+          <span v-else-if="r.outcome === 'fascist'" class="rc-fascist">F</span>
+          <span v-else-if="r.outcome === 'rejected'" class="rc-rejected">X</span>
+          <span v-else-if="r.outcome === 'chaos'" class="rc-chaos">!</span>
+          <span v-else class="rc-pending">...</span>
+        </div>
+        <div v-if="r.detail" class="rc-killed">{{ r.detail }}</div>
+      </template>
+      <!-- Werewolf: rich lines with faction colors -->
+      <template v-else>
+        <div class="rc-lines">
+          <div v-for="(line, i) in r.lines" :key="i" class="rc-line" v-html="line" />
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -34,6 +40,30 @@ const props = defineProps({
   gameType: { type: String, default: 'secret-dictator' },
 })
 
+const ROLE_ICONS = {
+  seer: '\uD83D\uDD2E',    // 🔮
+  witch: '\uD83E\uDDD9\u200D\u2640\uFE0F', // 🧙‍♀️
+}
+
+// Build a player map from game_start event for faction colors + roles
+const playerMap = computed(() => {
+  const map = {}
+  const start = props.events.find(e => e.type === 'game_start')
+  if (start?.players) {
+    for (const p of start.players) {
+      map[p.name] = { party: p.party || p.team || 'unknown', role: p.role }
+    }
+  }
+  return map
+})
+
+function colorName(name) {
+  const info = playerMap.value[name] || { party: 'unknown' }
+  const cssClass = info.party === 'werewolf' || info.party === 'fascist' || info.party === 'red' ? 'rc-name-evil' : 'rc-name-good'
+  const icon = ROLE_ICONS[info.role] || ''
+  return `<span class="${cssClass}">${name}</span>${icon ? ' ' + icon : ''}`
+}
+
 function scrollToRound(round) {
   const el = document.getElementById(`round-${round}`)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -45,7 +75,7 @@ const rounds = computed(() => {
   for (const e of props.events) {
     const r = e.round
     if (!r) continue
-    if (!map.has(r)) map.set(r, { round: r, info: '', outcome: '', detail: '' })
+    if (!map.has(r)) map.set(r, { round: r, info: '', outcome: '', detail: '', lines: [] })
     const entry = map.get(r)
 
     // Secret Dictator
@@ -62,29 +92,66 @@ const rounds = computed(() => {
     }
 
     // Werewolf
+    if (e.type === 'wolf_action') {
+      entry.wolfTarget = e.target
+    }
+    if (e.type === 'witch_save') {
+      const target = e.target || entry.wolfTarget
+      entry.lines.push(`${ROLE_ICONS.witch} Saved ${target ? colorName(target) : 'the target'}`)
+    }
+    // witch_kill info comes from dawn.deaths with cause:witch, no separate line needed
     if (e.type === 'dawn') {
       if (e.deaths?.length) {
         entry.outcome = 'kill'
-        entry.info = e.deaths.map(d => `${d.name} (${d.role || '?'})`).join(', ')
+        for (const d of e.deaths) {
+          const icon = d.cause === 'witch' ? ROLE_ICONS.witch : '\uD83D\uDC3A' // 🐺
+          entry.lines.push(`${icon} Killed ${colorName(d.name)}`)
+        }
       } else {
         entry.outcome = 'saved'
-        entry.info = 'Witch saved'
+        if (!entry.lines.some(l => l.includes('Saved'))) {
+          entry.lines.push('Everyone survived')
+        }
       }
     }
     if (e.type === 'elimination') {
-      entry.detail = `Voted: ${e.player} (${e.role || '?'})`
+      entry.lines.push(`Voted out: ${colorName(e.player)}`)
     }
     if (e.type === 'no_elimination') {
-      entry.detail = 'No elim'
+      entry.lines.push('No elimination')
     }
 
     // Two Rooms
     if (e.type === 'exchange') {
       entry.info = `${(e.aToB||[]).join(',')} / ${(e.bToA||[]).join(',')}`
-      entry.outcome = 'liberal' // just for color
+      entry.outcome = 'liberal'
     }
   }
 
   return [...map.values()].sort((a, b) => a.round - b.round)
 })
 </script>
+
+<style scoped>
+.rc-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+}
+
+.rc-line {
+  line-height: 1.3;
+  color: #aaa;
+}
+
+:deep(.rc-name-good) {
+  color: #6bcaff;
+  font-weight: 600;
+}
+
+:deep(.rc-name-evil) {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+</style>
