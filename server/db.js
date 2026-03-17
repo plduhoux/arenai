@@ -129,8 +129,9 @@ function seedDefaults() {
     { provider_id: 'openai', model_id: 'gpt-5-mini', display_name: 'GPT-5 Mini' },
     { provider_id: 'google', model_id: 'gemini-2.5-pro', display_name: 'Gemini 2.5 Pro' },
     { provider_id: 'google', model_id: 'gemini-2.5-flash', display_name: 'Gemini 2.5 Flash' },
-    { provider_id: 'xai', model_id: 'grok-4', display_name: 'Grok 4' },
-    { provider_id: 'xai', model_id: 'grok-4.1-fast', display_name: 'Grok 4.1 Fast' },
+    { provider_id: 'xai', model_id: 'grok-4-0709', display_name: 'Grok 4' },
+    { provider_id: 'xai', model_id: 'grok-4-1-fast-non-reasoning', display_name: 'Grok 4.1 Fast' },
+    { provider_id: 'xai', model_id: 'grok-4.20-beta-0309-non-reasoning', display_name: 'Grok 4.20' },
     { provider_id: 'moonshot', model_id: 'kimi-k2.5', display_name: 'Kimi K2.5' },
   ];
 
