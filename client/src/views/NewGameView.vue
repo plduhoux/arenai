@@ -286,7 +286,7 @@ async function launchBattle() {
 
     const { gameIds } = await response.json()
     battleProgress.value = gameIds.length
-    router.push('/')
+    router.push('/games')
   } catch (err) {
     alert(err.message)
   } finally {
