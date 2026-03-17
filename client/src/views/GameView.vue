@@ -108,11 +108,10 @@ async function fetchSessions() {
 
 const inspectorPlayers = computed(() => {
   // Live game: use SSE players + live sessions
-  // Finished game: use DB players + session_stats
+  // Finished game: use reconstructed players (with correct alive state)
   const ssePlayers = sseState.value.players
-  const gamePlayers = game.value?.players
   const raw = ssePlayers?.length ? ssePlayers
-    : (gamePlayers || sessionsData.value.players || [])
+    : (finalPlayers.value.length ? finalPlayers.value : sessionsData.value.players || [])
   const players = Array.isArray(raw) ? raw : []
 
   const dbSessionStats = game.value?.session_stats || {}
@@ -144,12 +143,32 @@ const selectedPlayerRole = computed(() => {
   return p?.role || ''
 })
 
+// Rebuild alive state from logs (DB players may have stale alive flags)
+const finalPlayers = computed(() => {
+  const players = (game.value?.players || []).map(p => ({ ...p, alive: true }))
+  for (const event of logs.value) {
+    // Day vote elimination
+    if (event.type === 'elimination') {
+      const idx = players.findIndex(p => p.name === event.player)
+      if (idx >= 0) players[idx].alive = false
+    }
+    // Dawn: deaths from wolf attacks and/or witch poison
+    if (event.type === 'dawn' && Array.isArray(event.deaths)) {
+      for (const d of event.deaths) {
+        const idx = players.findIndex(p => p.name === d.name)
+        if (idx >= 0) players[idx].alive = false
+      }
+    }
+  }
+  return players
+})
+
 const finishedState = computed(() => {
   if (!game.value) return {}
   const g = game.value
-  const players = g.players || []
+  const players = finalPlayers.value
 
-  // Count alive/dead from final state
+  // Count alive/dead from reconstructed state
   const aliveWolves = players.filter(p => p.alive && (p.party === 'werewolf')).length
   const aliveVillagers = players.filter(p => p.alive && (p.party === 'villager')).length
 
@@ -159,7 +178,7 @@ const finishedState = computed(() => {
     gameId: g.id,
     round: g.rounds || 0,
     winner: g.winner,
-    players: g.players || [],
+    players,
     // Secret Dictator
     liberalPolicies: g.policies_liberal || 0,
     fascistPolicies: g.policies_fascist || 0,
@@ -168,6 +187,8 @@ const finishedState = computed(() => {
     aliveWolves,
     aliveVillagers,
     aliveTotal: aliveWolves + aliveVillagers,
+    totalWolves: players.filter(p => p.party === 'werewolf').length,
+    totalVillagers: players.filter(p => p.party === 'villager').length,
     // Tokens
     tokensInput: g.tokens_input || 0,
     tokensOutput: g.tokens_output || 0,
