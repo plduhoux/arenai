@@ -5,6 +5,19 @@
 
 import { askLLM, askLLMSession } from '../../core/llm-client.js';
 
+// Strip markdown formatting from LLM responses before parsing commands
+function stripMd(text) {
+  return text
+    .replace(/\*{3}(.+?)\*{3}/g, '$1')   // ***bold+italic***
+    .replace(/\*{2}(.+?)\*{2}/g, '$1')   // **bold**
+    .replace(/\*(.+?)\*/g, '$1')          // *italic*
+    .replace(/__(.+?)__/g, '$1')          // __underline__
+    .replace(/^#{1,6}\s+/gm, '')          // ## headers
+    .replace(/(^|:\s*)\*{1,3}\s+/gm, '$1') // orphan ** after line start or colon
+    .replace(/\s*\*{1,3}$/gm, '')         // orphan ** at line end
+    .trim();
+}
+
 const FULL_DETAIL_ROUNDS = 2;
 
 // Track last-sent log index per player to only send delta
@@ -218,6 +231,11 @@ function ask(game, playerIndex, userPrompt, parseResponse) {
     ? `${deltaContext}\n\n${userPrompt}` 
     : userPrompt;
 
+  // Wrap parseResponse to strip markdown before parsing commands
+  const wrappedParse = parseResponse
+    ? (text) => parseResponse(stripMd(text))
+    : undefined;
+
   return askLLMSession({
     gameId: game.id,
     model,
@@ -225,7 +243,7 @@ function ask(game, playerIndex, userPrompt, parseResponse) {
     userPrompt: fullPrompt,
     playerName: game.players[playerIndex].name,
     playerKey: `player:${playerIndex}:${game.players[playerIndex].name}`,
-    parseResponse,
+    parseResponse: wrappedParse,
   });
 }
 
