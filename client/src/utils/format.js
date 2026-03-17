@@ -13,6 +13,9 @@ export function shortModel(m) {
     .replace(/^(opus|sonnet|haiku)-(\d+)-(\d+)$/i, (_, name, maj, min) =>
       `${name.charAt(0).toUpperCase() + name.slice(1)} ${maj}.${min}`)
     .replace(/^(gpt-)/i, 'GPT-')
+    .replace(/^grok-4\.20.*$/i, 'Grok 4.20')
+    .replace(/^grok-4-1-fast.*$/i, 'Grok 4.1 Fast')
+    .replace(/^grok-4-0709$/i, 'Grok 4')
     .replace(/^(grok-)/i, 'Grok ')
     .replace(/^(kimi-)/i, 'Kimi ')
     .replace(/^(gemini-)/i, 'Gemini ')
