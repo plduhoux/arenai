@@ -44,7 +44,7 @@ const PROVIDER_URLS = {
   openai: 'https://api.openai.com/v1',
   google: 'https://generativelanguage.googleapis.com/v1beta/openai',
   xai: 'https://api.x.ai/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
+  moonshot: 'https://api.moonshot.ai/v1',
 };
 
 // --- Client cache ---
