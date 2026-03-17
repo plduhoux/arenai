@@ -102,7 +102,4 @@ function formatK(n) {
 .player-chip.dead {
   opacity: 0.4;
 }
-.player-chip.dead .chip-name {
-  text-decoration: line-through;
-}
 </style>

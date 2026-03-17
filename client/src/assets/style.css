@@ -201,7 +201,7 @@ h3 { font-size: 1.1rem; }
 .player-chip.liberal { border-left: 3px solid var(--liberal); }
 .player-chip.fascist { border-left: 3px solid var(--fascist); }
 .player-chip.dictator { border-left: 3px solid var(--danger); background: rgba(239,68,68,0.1); }
-.player-chip.dead { opacity: 0.4; text-decoration: line-through; }
+.player-chip.dead { opacity: 0.4; }
 .chip-model { color: var(--text2); margin-left: 0.25rem; }
 .badge-dead {
   font-size: 0.65rem;
