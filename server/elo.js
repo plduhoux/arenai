@@ -31,12 +31,17 @@ function isGoodWinner(winner) {
  * Replay all finished games chronologically and compute ELO ratings.
  * Returns { overall, byRole: { good, evil }, byGame: { 'two-rooms': {...}, ... } }
  */
-function computeElo(gameTypeFilter) {
+function computeElo(gameTypeFilter, { savedOnly = false, excludeModels = [] } = {}) {
   const db = getDb();
 
-  const where = gameTypeFilter
-    ? "WHERE status = 'finished' AND game_type = ?"
-    : "WHERE status = 'finished'";
+  const conditions = ["status = 'finished'"];
+  if (gameTypeFilter) conditions.push('game_type = ?');
+  if (savedOnly) conditions.push('saved = 1');
+  for (const m of excludeModels) {
+    conditions.push(`model_good != '${m.replace(/'/g, "''")}'`);
+    conditions.push(`model_evil != '${m.replace(/'/g, "''")}'`);
+  }
+  const where = 'WHERE ' + conditions.join(' AND ');
   const params = gameTypeFilter ? [gameTypeFilter] : [];
 
   const games = db.prepare(`
@@ -133,20 +138,26 @@ function formatBucket(bucket) {
 /**
  * Get ELO rankings (computed dynamically).
  */
-export function getEloRankings() {
+export function getEloRankings({ savedOnly = false, excludeModels = [] } = {}) {
   const db = getDb();
 
-  // Get all game types
-  const gameTypes = db.prepare("SELECT DISTINCT game_type FROM games WHERE status = 'finished'")
+  const conditions = ["status = 'finished'"];
+  if (savedOnly) conditions.push('saved = 1');
+  for (const m of excludeModels) {
+    conditions.push(`model_good != '${m.replace(/'/g, "''")}'`);
+    conditions.push(`model_evil != '${m.replace(/'/g, "''")}'`);
+  }
+  const where = conditions.join(' AND ');
+  const gameTypes = db.prepare(`SELECT DISTINCT game_type FROM games WHERE ${where}`)
     .all().map(r => r.game_type);
 
   // Overall ratings (all games)
-  const all = computeElo();
+  const all = computeElo(null, { savedOnly, excludeModels });
 
   // Per game type
   const byGame = {};
   for (const gt of gameTypes) {
-    const gtRatings = computeElo(gt);
+    const gtRatings = computeElo(gt, { savedOnly, excludeModels });
     byGame[gt] = {
       overall: formatBucket(gtRatings.overall),
       good: formatBucket(gtRatings.good),

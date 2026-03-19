@@ -130,16 +130,23 @@ api.get('/token-estimates', (req, res) => {
   }
 });
 
-api.get('/elo', (req, res) => res.json(elo.getEloRankings()));
+api.get('/elo', (req, res) => {
+  const excludeModels = req.query.excludeModels ? req.query.excludeModels.split(',') : [];
+  res.json(elo.getEloRankings({ excludeModels }));
+});
 api.get('/elo/:model', (req, res) => res.json(elo.getEloHistory(decodeURIComponent(req.params.model))));
-api.get('/stats', (req, res) => res.json(db.getStats(req.query.gameType)));
+api.get('/stats', (req, res) => {
+  const excludeModels = req.query.excludeModels ? req.query.excludeModels.split(',') : [];
+  res.json(db.getStats(req.query.gameType, { excludeModels }));
+});
 
 api.get('/token-stats', (req, res) => {
-  const gameTypes = getTokenGameTypes();
-  const all = getTokenStats();
+  const excludeModels = req.query.excludeModels ? req.query.excludeModels.split(',') : [];
+  const gameTypes = getTokenGameTypes({ excludeModels });
+  const all = getTokenStats(null, { excludeModels });
   const byGame = {};
   for (const gt of gameTypes) {
-    byGame[gt] = getTokenStats(gt);
+    byGame[gt] = getTokenStats(gt, { excludeModels });
   }
   res.json({ ...all, byGame, gameTypes });
 });
@@ -586,7 +593,7 @@ api.post('/models/test', async (req, res) => {
       systemPrompt: 'You are a test. Reply briefly.',
       userPrompt: question,
       playerName: 'Test',
-      maxTokens: 20,
+      maxTokens: 1024,
       retries: 0,
     });
     res.json({ ok: true, question, answer });

@@ -86,22 +86,22 @@ for (const game of savedGames) {
 }
 console.log(`  Individual game data exported`);
 
-// 6. Export stats
-const statsAll = db.getStats();
+// 6. Export stats (saved games only for static site)
+const statsAll = db.getStats(null, { savedOnly: true });
 writeFileSync(join(DATA, 'stats.json'), JSON.stringify(statsAll, null, 2));
 console.log(`  stats.json`);
 
-// 7. Export ELO
-const eloData = elo.getEloRankings();
+// 7. Export ELO (saved games only for static site)
+const eloData = elo.getEloRankings({ savedOnly: true });
 writeFileSync(join(DATA, 'elo.json'), JSON.stringify(eloData, null, 2));
 console.log(`  elo.json`);
 
 // 8. Export token stats
-const gameTypes = getTokenGameTypes();
-const tokenAll = getTokenStats();
+const gameTypes = getTokenGameTypes({ savedOnly: true });
+const tokenAll = getTokenStats(null, { savedOnly: true });
 const tokenByGame = {};
 for (const gt of gameTypes) {
-  tokenByGame[gt] = getTokenStats(gt);
+  tokenByGame[gt] = getTokenStats(gt, { savedOnly: true });
 }
 writeFileSync(join(DATA, 'token-stats.json'), JSON.stringify({ ...tokenAll, byGame: tokenByGame, gameTypes }, null, 2));
 console.log(`  token-stats.json`);

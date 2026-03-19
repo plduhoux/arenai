@@ -25,11 +25,22 @@ const PRICING = {
   'gemini-2.5-pro':    { input: 1.25,  output: 10.00, cacheRead: 0,     cacheWrite: 0 },
   'gemini-2.5-flash':  { input: 0.30,  output: 2.50,  cacheRead: 0,     cacheWrite: 0 },
   'grok-4':            { input: 3.00,  output: 15.00, cacheRead: 0,     cacheWrite: 0 },
+  'grok-4.20':         { input: 2.00,  output: 6.00,  cacheRead: 0.20,  cacheWrite: 0 },
   'grok-4.1-fast':     { input: 0.20,  output: 0.50,  cacheRead: 0,     cacheWrite: 0 },
 };
 
+function findPricing(model) {
+  if (PRICING[model]) return PRICING[model];
+  // Try prefix match (e.g. "grok-4.20-beta-0309-non-reasoning" → "grok-4.20")
+  const keys = Object.keys(PRICING).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (model.startsWith(k)) return PRICING[k];
+  }
+  return null;
+}
+
 function estimateCost(model, input, output, cacheRead = 0, cacheWrite = 0) {
-  const p = PRICING[model];
+  const p = findPricing(model);
   if (!p) return null;
   return (
     (input / 1_000_000) * p.input +
@@ -49,12 +60,17 @@ function getSide(player) {
  * Compute token stats from session_stats (per-player granularity).
  * Falls back to game-level tokens split by model when session_stats unavailable.
  */
-export function getTokenStats(gameTypeFilter) {
+export function getTokenStats(gameTypeFilter, { savedOnly = false, excludeModels = [] } = {}) {
   const db = getDb();
 
-  const where = gameTypeFilter
-    ? "WHERE status = 'finished' AND game_type = ?"
-    : "WHERE status = 'finished'";
+  const conditions = ["status = 'finished'"];
+  if (gameTypeFilter) conditions.push('game_type = ?');
+  if (savedOnly) conditions.push('saved = 1');
+  for (const m of excludeModels) {
+    conditions.push(`model_good != '${m.replace(/'/g, "''")}'`);
+    conditions.push(`model_evil != '${m.replace(/'/g, "''")}'`);
+  }
+  const where = 'WHERE ' + conditions.join(' AND ');
   const params = gameTypeFilter ? [gameTypeFilter] : [];
 
   const games = db.prepare(`
@@ -210,8 +226,14 @@ export function getTokenStats(gameTypeFilter) {
 /**
  * Get all game types with finished games.
  */
-export function getTokenGameTypes() {
+export function getTokenGameTypes({ savedOnly = false, excludeModels = [] } = {}) {
   const db = getDb();
-  return db.prepare("SELECT DISTINCT game_type FROM games WHERE status = 'finished'")
+  const conditions = ["status = 'finished'"];
+  if (savedOnly) conditions.push('saved = 1');
+  for (const m of excludeModels) {
+    conditions.push(`model_good != '${m.replace(/'/g, "''")}'`);
+    conditions.push(`model_evil != '${m.replace(/'/g, "''")}'`);
+  }
+  return db.prepare(`SELECT DISTINCT game_type FROM games WHERE ${conditions.join(' AND ')}`)
     .all().map(r => r.game_type);
 }

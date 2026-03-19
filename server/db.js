@@ -133,6 +133,7 @@ function seedDefaults() {
     { provider_id: 'xai', model_id: 'grok-4-1-fast-non-reasoning', display_name: 'Grok 4.1 Fast' },
     { provider_id: 'xai', model_id: 'grok-4.20-beta-0309-non-reasoning', display_name: 'Grok 4.20' },
     { provider_id: 'moonshot', model_id: 'kimi-k2.5', display_name: 'Kimi K2.5' },
+    { provider_id: 'moonshot', model_id: 'kimi-k2-thinking', display_name: 'Kimi K2 Thinking' },
   ];
 
   const insertProvider = db.prepare('INSERT OR IGNORE INTO providers (id, name) VALUES (?, ?)');
@@ -295,9 +296,16 @@ export function getGameLogs(id) {
 const GOOD_WINNERS = ['liberal', 'villager', 'blue'];
 const EVIL_WINNERS = ['fascist', 'werewolf', 'red'];
 
-export function getStats(gameType) {
+export function getStats(gameType, { savedOnly = false, excludeModels = [] } = {}) {
   const db = getDb();
-  const where = gameType ? `AND game_type = '${gameType}'` : '';
+  const conditions = ['status = \'finished\''];
+  if (gameType) conditions.push(`game_type = '${gameType}'`);
+  if (savedOnly) conditions.push('saved = 1');
+  for (const m of excludeModels) {
+    conditions.push(`model_good != '${m.replace(/'/g, "''")}'`);
+    conditions.push(`model_evil != '${m.replace(/'/g, "''")}'`);
+  }
+  const where = conditions.join(' AND ');
 
   const totals = db.prepare(`
     SELECT
@@ -305,18 +313,18 @@ export function getStats(gameType) {
       SUM(CASE WHEN winner IN ('liberal','villager','blue') THEN 1 ELSE 0 END) as good_wins,
       SUM(CASE WHEN winner IN ('fascist','werewolf','red') THEN 1 ELSE 0 END) as evil_wins,
       AVG(rounds) as avg_rounds
-    FROM games WHERE status = 'finished' ${where}
+    FROM games WHERE ${where}
   `).get();
 
   const byReason = db.prepare(`
     SELECT win_reason, COUNT(*) as count
-    FROM games WHERE status = 'finished' ${where}
+    FROM games WHERE ${where}
     GROUP BY win_reason
   `).all();
 
   const byModelRaw = db.prepare(`
     SELECT model_good, model_evil, winner, COUNT(*) as count
-    FROM games WHERE status = 'finished' ${where}
+    FROM games WHERE ${where}
     GROUP BY model_good, model_evil, winner
   `).all();
 
@@ -342,12 +350,43 @@ export function getStats(gameType) {
   }
   const byModel = Object.values(modelMap).sort((a, b) => b.played - a.played);
 
+  // Head-to-head matrix: for each pair of models, wins split by role
+  // Each entry tracks: when modelA was good vs modelB evil, and vice versa
+  const h2hMap = {};
+  for (const row of byModelRaw) {
+    const mGood = row.model_good || 'unknown';
+    const mEvil = row.model_evil || 'unknown';
+    if (mGood === mEvil) continue;
+    const goodWon = GOOD_WINNERS.includes(row.winner);
+    const [a, b] = [mGood, mEvil].sort();
+    const key = `${a}|||${b}`;
+    if (!h2hMap[key]) h2hMap[key] = {
+      modelA: a, modelB: b, total: 0,
+      // When A is good, B is evil
+      aGoodWins: 0, aGoodLosses: 0,
+      // When A is evil, B is good
+      aEvilWins: 0, aEvilLosses: 0,
+    };
+    const h = h2hMap[key];
+    h.total += row.count;
+    if (mGood === a) {
+      // A was good side, B was evil
+      if (goodWon) h.aGoodWins += row.count;
+      else h.aGoodLosses += row.count;
+    } else {
+      // A was evil side, B was good
+      if (goodWon) h.aEvilLosses += row.count;
+      else h.aEvilWins += row.count;
+    }
+  }
+  const headToHead = Object.values(h2hMap);
+
   // Game type list for tabs
   const gameTypes = db.prepare(`
-    SELECT DISTINCT game_type FROM games WHERE status = 'finished'
+    SELECT DISTINCT game_type FROM games WHERE ${where}
   `).all().map(r => r.game_type);
 
-  return { totals, byReason, byModel, gameTypes };
+  return { totals, byReason, byModel, headToHead, gameTypes };
 }
 
 export function toggleSaved(id) {
