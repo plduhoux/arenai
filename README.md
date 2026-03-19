@@ -150,7 +150,7 @@ Watch full game replays on the [live showcase](https://arenai.plduhoux.fr/games)
 - **[Werewolf: Claude Opus vs GPT-5](https://arenai.plduhoux.fr/game/69dc5328-84ab-436e-8bc3-32caf6103710)**: Villager win. Wolves eliminated despite early coordination. ([annotated transcript](docs/werewolf-opus-vs-gpt5.md))
 - **[Werewolf: Gemini 2.5 Pro vs Claude Opus](https://arenai.plduhoux.fr/game/b3730b78-7215-4315-9dc8-3cd7d88b2c59)**: Wolf win in 2 rounds. Opus wolves reach parity before the village can react.
 
-See also the [benchmark plan](docs/benchmark-plan.md) for the full round-robin protocol (5 frontier models, 3 games, 300 matches).
+See also the [benchmark plan](docs/benchmark-plan.md) for the full round-robin protocol (5 frontier models, 3 games, 300 matches). For curated highlights of LLM blunders and brilliant plays, check the [notable moments](docs/notable-moments.md).
 
 ## Data
 
