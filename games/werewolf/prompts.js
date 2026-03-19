@@ -378,7 +378,9 @@ export function seerInspect(game) {
   return ask(game, seerIndex, prompt,
     (text) => {
       const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET:)/is);
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+      // Extract numbers only from the TARGET line to avoid thought content interfering
+      const targetLine = text.match(/TARGET:\s*(.*)/i)?.[1] || text;
+      const nums = [...targetLine.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
       let target = null;
       for (const n of nums) if (eligible.some(e => e.index === n)) { target = n; break; }
       if (target === null) target = eligible[Math.floor(Math.random() * eligible.length)].index;
