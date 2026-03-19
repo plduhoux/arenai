@@ -224,19 +224,21 @@ async function phaseNight(game, { onEvent, checkPause }) {
     onEvent({ type: 'thought', player: game.players[witchIdx].name, thought: witchResult.thought });
   }
   engine.setWitchAction(game, witchResult);
-  // Always emit witch_decision so the viewer sees what happened
+  // Only emit witch_decision if the Witch is alive (dead witch = no action, no log)
   const witchTarget = game.players[wolfTarget];
-  onEvent({
-    type: 'witch_decision',
-    witch: witchIdx !== -1 ? game.players[witchIdx].name : 'Witch',
-    wolfTarget: witchTarget.name,
-    wolfTargetRole: witchTarget.role,
-    wolfTargetParty: witchTarget.party,
-    saved: !!witchResult.save,
-    killTarget: witchResult.killTarget !== null ? game.players[witchResult.killTarget].name : null,
-    killTargetRole: witchResult.killTarget !== null ? game.players[witchResult.killTarget].role : null,
-    killTargetParty: witchResult.killTarget !== null ? game.players[witchResult.killTarget].party : null,
-  });
+  if (witchIdx !== -1) {
+    onEvent({
+      type: 'witch_decision',
+      witch: game.players[witchIdx].name,
+      wolfTarget: witchTarget.name,
+      wolfTargetRole: witchTarget.role,
+      wolfTargetParty: witchTarget.party,
+      saved: !!witchResult.save,
+      killTarget: witchResult.killTarget !== null ? game.players[witchResult.killTarget].name : null,
+      killTargetRole: witchResult.killTarget !== null ? game.players[witchResult.killTarget].role : null,
+      killTargetParty: witchResult.killTarget !== null ? game.players[witchResult.killTarget].party : null,
+    });
+  }
   // Legacy events kept for backward compat
   if (witchResult.save) onEvent({ type: 'witch_save', target: witchTarget.name, targetRole: witchTarget.role, targetParty: witchTarget.party });
   if (witchResult.killTarget !== null) {
