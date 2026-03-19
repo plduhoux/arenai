@@ -19,9 +19,11 @@ Night 1: the wolves (Alice + Clara) target David. The Witch saves him. At dawn, 
 
 ### Why it's stupid
 
-Clara reveals she knows **David** was saved. This information is only known to two groups: the wolves (who targeted him) and the Witch (who saved him). The public announcement only says "everyone survived," not who was targeted.
+Two layers of bad logic:
 
-On top of that, the argument is absurd on its face: wolves only target villagers, so being saved by the Witch is evidence of innocence, not suspicion.
+1. **Suspecting the saved player is nonsensical.** Wolves only target villagers. Being saved by the Witch is proof of innocence, not evidence of suspicion. Clara is essentially saying "the wolves tried to kill David, so maybe he's not innocent" which is self-contradictory for a wolf to argue.
+
+2. **Questioning the Witch's judgment is suspicious.** The Witch is by definition a villager. Framing her save as questionable ("why did she think he was targeted?") implicitly casts doubt on a confirmed village role, which serves no villager's interest.
 
 ### The response (Gemini 2.5-pro)
 
