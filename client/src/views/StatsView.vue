@@ -2,16 +2,29 @@
   <div class="stats-view">
     <div class="stats-header">
       <h1>Stats</h1>
-      <div class="game-filter" v-if="allGameTypes.length > 0">
-        <button
-          class="filter-pill" :class="{ active: gameTypeFilter === 'all' }"
-          @click="gameTypeFilter = 'all'"
-        >All</button>
-        <button
-          v-for="gt in allGameTypes" :key="gt"
-          class="filter-pill" :class="{ active: gameTypeFilter === gt }"
-          @click="gameTypeFilter = gt"
-        >{{ gameTypeLabel(gt) }}</button>
+      <div class="header-filters">
+        <div class="game-filter" v-if="allGameTypes.length > 0">
+          <button
+            class="filter-pill" :class="{ active: gameTypeFilter === 'all' }"
+            @click="gameTypeFilter = 'all'"
+          >All</button>
+          <button
+            v-for="gt in allGameTypes" :key="gt"
+            class="filter-pill" :class="{ active: gameTypeFilter === gt }"
+            @click="gameTypeFilter = gt"
+          >{{ gameTypeLabel(gt) }}</button>
+        </div>
+        <div class="model-filter-wrap" @click.stop>
+          <button class="filter-pill model-filter-btn" :class="{ active: excludedModels.size > 0 }" @click="modelFilterOpen = !modelFilterOpen">
+            Models{{ excludedModels.size > 0 ? ` (${allModels.length - excludedModels.size}/${allModels.length})` : '' }}
+          </button>
+          <div v-if="modelFilterOpen" class="model-filter-popover">
+            <label v-for="m in allModels" :key="m" class="model-filter-item" @click.prevent="toggleModel(m)">
+              <input type="checkbox" :checked="isModelVisible(m)" tabindex="-1" />
+              <span>{{ shortModel(m) }}</span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -66,7 +79,61 @@
           </div>
         </div>
 
-        <div v-if="stats.byModel?.length" class="stat-card wide-card">
+        <div v-if="h2hModels.length >= 2" class="stat-card wide-card">
+          <h3>Head to Head</h3>
+          <div class="h2h-filters">
+            <button
+              v-for="f in h2hDisplayModes" :key="f.id"
+              class="filter-pill" :class="{ active: h2hMode === f.id }"
+              @click="h2hMode = f.id"
+            >{{ f.label }}</button>
+          </div>
+          <div class="table-scroll">
+          <table class="h2h-table">
+            <thead>
+              <tr>
+                <th class="h2h-corner"><span class="h2h-corner-row">Row</span><span class="h2h-corner-sep">\</span><span class="h2h-corner-col">Col</span></th>
+                <th v-for="m in h2hModels" :key="m" class="h2h-col-header">{{ shortModel(m) }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in h2hModels" :key="row">
+                <td class="model-name">{{ shortModel(row) }}</td>
+                <td v-for="col in h2hModels" :key="col" class="h2h-cell" :class="{ diagonal: row === col }">
+                  <template v-if="row === col">
+                    <span class="diagonal-dash">-</span>
+                  </template>
+                  <template v-else-if="getH2HDetail(row, col)">
+                    <div class="h2h-content" :class="h2hOverallClass(row, col)">
+                      <template v-if="h2hMode === 'wl'">
+                        <span class="h2h-main">{{ getH2HDetail(row, col).totalWins }}-{{ getH2HDetail(row, col).total - getH2HDetail(row, col).totalWins }}</span>
+                      </template>
+                      <template v-else-if="h2hMode === 'pct'">
+                        <span class="h2h-main">{{ h2hWinPct(row, col) }}%</span>
+                      </template>
+                      <template v-else-if="h2hMode === 'role'">
+                        <span class="h2h-role-line">
+                          <span class="h2h-good">{{ getH2HDetail(row, col).asGoodWins }}-{{ getH2HDetail(row, col).asGoodGames - getH2HDetail(row, col).asGoodWins }}</span>
+                          <span class="h2h-sep">/</span>
+                          <span class="h2h-evil">{{ getH2HDetail(row, col).asEvilWins }}-{{ getH2HDetail(row, col).asEvilGames - getH2HDetail(row, col).asEvilWins }}</span>
+                        </span>
+                      </template>
+                      <template v-else-if="h2hMode === 'games'">
+                        <span class="h2h-main">{{ getH2HDetail(row, col).total }}</span>
+                      </template>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span class="h2h-empty">-</span>
+                  </template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+
+        <div v-if="filteredByModel.length" class="stat-card wide-card">
           <h3>By Model</h3>
           <div class="table-scroll">
           <table class="model-table">
@@ -84,7 +151,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="m in stats.byModel" :key="m.model">
+              <tr v-for="m in filteredByModel" :key="m.model">
                 <td class="model-name">{{ shortModel(m.model) }}</td>
                 <td>{{ m.played }}</td>
                 <td class="wins">{{ m.wins }}</td>
@@ -233,7 +300,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { shortModel, winReasonLabel, formatTokens as fmt, formatDate } from '../utils/format'
 import { isStatic } from '../composables/useApi'
@@ -252,9 +319,49 @@ const sections = [
   { id: 'tokens', label: 'Tokens' },
 ]
 
+// ═══════ PERSISTENT FILTERS (localStorage) ═══════
+const STORAGE_KEY = 'arenai-stats-filters'
+
+function loadFilters() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}
+  } catch { return {} }
+}
+
+function saveFilters(patch) {
+  const current = loadFilters()
+  Object.assign(current, patch)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+}
+
+const saved = loadFilters()
+
 const activeSection = ref(props.section)
-const gameTypeFilter = ref('all')
+const gameTypeFilter = ref(saved.gameType || 'all')
 const allGameTypes = ref([])
+
+// H2H display mode
+const h2hMode = ref(saved.h2hMode || 'wl')
+const h2hDisplayModes = [
+  { id: 'wl', label: 'W-L' },
+  { id: 'pct', label: 'Win %' },
+  { id: 'role', label: 'By Role' },
+  { id: 'games', label: 'Games' },
+]
+
+// Model filter
+const excludedModels = ref(new Set(saved.excludedModels || []))
+const modelFilterOpen = ref(false)
+
+watch(h2hMode, (v) => saveFilters({ h2hMode: v }))
+watch(gameTypeFilter, (v) => saveFilters({ gameType: v }))
+watch(excludedModels, (v) => {
+  saveFilters({ excludedModels: [...v] })
+  // Reload all loaded data with new filter
+  loadStats()
+  if (elo.value) loadElo()
+  if (tokenData.value) loadTokens()
+}, { deep: true })
 
 watch(() => props.section, (v) => { activeSection.value = v })
 
@@ -306,19 +413,135 @@ function winPct(m) {
   return m.played > 0 ? Math.round((m.wins / m.played) * 100) : 0
 }
 
+// All known models (stable list for filter popover - never shrinks)
+const knownModels = ref([])
+
+const allModels = computed(() => knownModels.value)
+
+function updateKnownModels(models) {
+  const set = new Set(knownModels.value)
+  for (const m of models) set.add(m)
+  knownModels.value = [...set].sort()
+}
+
+function toggleModel(model) {
+  const s = new Set(excludedModels.value)
+  if (s.has(model)) s.delete(model)
+  else s.add(model)
+  excludedModels.value = s
+}
+
+function isModelVisible(model) {
+  return !excludedModels.value.has(model)
+}
+
+// Head-to-head matrix (filtered)
+const h2hModels = computed(() => {
+  return allModels.value.filter(m => !excludedModels.value.has(m))
+})
+
+// Filtered byModel rows
+const filteredByModel = computed(() => {
+  if (!stats.value?.byModel) return []
+  return stats.value.byModel.filter(m => !excludedModels.value.has(m.model))
+})
+
+function getH2H(rowModel, colModel) {
+  if (!stats.value?.headToHead) return null
+  const [a, b] = [rowModel, colModel].sort()
+  const match = stats.value.headToHead.find(h => h.modelA === a && h.modelB === b)
+  if (!match) return null
+  // From row model's perspective
+  const isA = rowModel === a
+  return {
+    // Row model as good side vs col model as evil
+    asGoodWins: isA ? match.aGoodWins : match.aEvilLosses ? 0 : match.aEvilLosses, // need to flip
+    asGoodTotal: isA ? (match.aGoodWins + match.aGoodLosses) : (match.aEvilWins + match.aEvilLosses),
+    // Row model as evil side vs col model as good
+    asEvilWins: isA ? match.aEvilWins : match.aGoodLosses ? 0 : match.aGoodLosses,
+    asEvilTotal: isA ? (match.aEvilWins + match.aEvilLosses) : (match.aGoodWins + match.aGoodLosses),
+    total: match.total,
+    totalWins: isA ? (match.aGoodWins + match.aEvilWins) : (match.aGoodLosses + match.aEvilLosses),
+  }
+}
+
+// Recompute properly: when row is A, row's wins as good = aGoodWins; when row is B, row's wins as good = aEvilLosses (B was good when A was evil, B won when A lost as evil)
+function getH2HDetail(rowModel, colModel) {
+  if (!stats.value?.headToHead) return null
+  const [a, b] = [rowModel, colModel].sort()
+  const match = stats.value.headToHead.find(h => h.modelA === a && h.modelB === b)
+  if (!match) return null
+  const isA = rowModel === a
+  if (isA) {
+    return {
+      asGoodWins: match.aGoodWins,
+      asGoodGames: match.aGoodWins + match.aGoodLosses,
+      asEvilWins: match.aEvilWins,
+      asEvilGames: match.aEvilWins + match.aEvilLosses,
+      total: match.total,
+      totalWins: match.aGoodWins + match.aEvilWins,
+    }
+  } else {
+    // Row is B: B as good = when A was evil
+    return {
+      asGoodWins: match.aEvilLosses,
+      asGoodGames: match.aEvilWins + match.aEvilLosses,
+      asEvilWins: match.aGoodLosses,
+      asEvilGames: match.aGoodWins + match.aGoodLosses,
+      total: match.total,
+      totalWins: match.aEvilLosses + match.aGoodLosses,
+    }
+  }
+}
+
+function h2hWinPct(rowModel, colModel) {
+  const d = getH2HDetail(rowModel, colModel)
+  if (!d || !d.total) return 0
+  return Math.round((d.totalWins / d.total) * 100)
+}
+
+function h2hOverallClass(rowModel, colModel) {
+  const d = getH2HDetail(rowModel, colModel)
+  if (!d) return ''
+  if (d.totalWins > d.total - d.totalWins) return 'winning'
+  if (d.totalWins < d.total - d.totalWins) return 'losing'
+  return 'tied'
+}
+
+function buildExcludeParam() {
+  if (excludedModels.value.size === 0) return ''
+  return `excludeModels=${[...excludedModels.value].map(encodeURIComponent).join(',')}`
+}
+
+function buildUrl(base, extraParams = {}) {
+  const parts = []
+  for (const [k, v] of Object.entries(extraParams)) {
+    if (v) parts.push(`${k}=${encodeURIComponent(v)}`)
+  }
+  const ex = buildExcludeParam()
+  if (ex) parts.push(ex)
+  return parts.length ? `${base}?${parts.join('&')}` : base
+}
+
 async function loadStats() {
   statsLoading.value = true
   const gt = gameTypeFilter.value
   const base = isStatic ? '/data/stats.json' : '/api/stats'
-  const params = (!isStatic && gt && gt !== 'all') ? `?gameType=${gt}` : ''
-  const res = await fetch(`${base}${params}`)
+  const url = isStatic ? base : buildUrl(base, gt !== 'all' ? { gameType: gt } : {})
+  const res = await fetch(url)
   let data = await res.json()
   // In static mode, filter client-side
   if (isStatic && gt && gt !== 'all' && data.byGameType) {
     data = data.byGameType[gt] || data
   }
   stats.value = data
-  if (data.gameTypes) allGameTypes.value = data.gameTypes
+  if (data.byModel) updateKnownModels(data.byModel.map(m => m.model))
+  // Always update game types if we get a bigger or initial list; only "all" returns the full list
+  if (data.gameTypes && (gt === 'all' || allGameTypes.value.length === 0)) {
+    if (gt === 'all' || data.gameTypes.length > allGameTypes.value.length) {
+      allGameTypes.value = data.gameTypes
+    }
+  }
   statsLoading.value = false
 }
 
@@ -338,7 +561,7 @@ const eloCurrentData = computed(() => {
 async function loadElo() {
   eloLoading.value = true
   try {
-    const url = isStatic ? '/data/elo.json' : '/api/elo'
+    const url = isStatic ? '/data/elo.json' : buildUrl('/api/elo')
     const res = await fetch(url)
     elo.value = await res.json()
   } catch {}
@@ -383,22 +606,147 @@ const tokensCurrentGames = computed(() => {
 async function loadTokens() {
   tokensLoading.value = true
   try {
-    const url = isStatic ? '/data/token-stats.json' : '/api/token-stats'
+    const url = isStatic ? '/data/token-stats.json' : buildUrl('/api/token-stats')
     const res = await fetch(url)
     tokenData.value = await res.json()
   } catch {}
   tokensLoading.value = false
 }
 
+// Close model filter on outside click
+function onDocClick() { modelFilterOpen.value = false }
+
 // ═══════ INIT ═══════
 onMounted(() => {
+  document.addEventListener('click', onDocClick, true)
   loadStats()
+  // Always fetch unfiltered stats once to populate full model list + game types
+  if (gameTypeFilter.value !== 'all' || excludedModels.value.size > 0) {
+    fetch(isStatic ? '/data/stats.json' : '/api/stats')
+      .then(r => r.json())
+      .then(d => {
+        if (d.gameTypes) allGameTypes.value = d.gameTypes
+        if (d.byModel) updateKnownModels(d.byModel.map(m => m.model))
+      })
+      .catch(() => {})
+  }
   if (activeSection.value === 'elo') loadElo()
   else if (activeSection.value === 'tokens') loadTokens()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick, true)
 })
 </script>
 
 <style scoped>
+/* Head-to-head matrix */
+.h2h-filters {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+.model-filter-wrap {
+  position: relative;
+}
+.model-filter-btn {
+  font-size: 0.78rem;
+}
+.model-filter-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  margin-top: 0.3rem;
+  background: var(--bg, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.model-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text);
+  user-select: none;
+}
+.model-filter-item:hover {
+  background: var(--bg2);
+}
+.model-filter-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  pointer-events: none;
+}
+.h2h-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.h2h-table th, .h2h-table td {
+  padding: 0.5rem;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+.h2h-corner {
+  font-size: 0.65rem;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.h2h-corner-row { opacity: 0.7; }
+.h2h-corner-sep { margin: 0 0.15rem; opacity: 0.3; }
+.h2h-corner-col { opacity: 0.7; }
+.h2h-col-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.h2h-cell {
+  min-width: 70px;
+  vertical-align: middle;
+}
+.h2h-cell.diagonal {
+  background: var(--bg2);
+}
+.diagonal-dash, .h2h-empty {
+  color: var(--text2);
+  opacity: 0.3;
+}
+.h2h-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.3;
+}
+.h2h-content.winning { color: var(--good, #22c55e); }
+.h2h-content.losing { color: var(--evil, #ef4444); }
+.h2h-content.tied { color: var(--text2); }
+.h2h-main {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.h2h-role-line {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.h2h-good { color: var(--good, #22c55e); }
+.h2h-evil { color: var(--evil, #ef4444); }
+.h2h-sep { color: var(--text2); opacity: 0.4; }
+
 .stats-header {
   display: flex;
   align-items: center;
@@ -408,6 +756,12 @@ onMounted(() => {
   gap: 0.75rem;
 }
 .stats-header h1 { margin: 0; }
+
+.header-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 
 .game-filter {
   display: flex;
