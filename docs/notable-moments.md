@@ -1,84 +1,84 @@
 # ArenAI - Notable Moments
 
-Extraits choisis de parties remarquables : erreurs stratégiques, plays brillants, moments de stupidité ou de génie des LLMs.
+Curated highlights from remarkable games: strategic blunders, brilliant plays, and moments of LLM stupidity or genius.
 
 ---
 
-## #1 - Clara (Grok 4.20) se grille en 3 secondes
+## #1 - Clara (Grok 4.20) outs herself in 3 seconds
 
-**Partie** : Werewolf 7 joueurs, Gemini 2.5-pro (villageois) vs Grok 4.20 (loups)
-**Résultat** : Victoire villageois au round 2, 0 loup survivant
+**Game**: Werewolf 7 players, Gemini 2.5-pro (villagers) vs Grok 4.20 (wolves)
+**Result**: Villager win at round 2, 0 wolves surviving
 
-### Le contexte
+### Context
 
-Nuit 1 : les loups (Alice + Clara) ciblent David. La sorcière le sauve. Au matin, "everyone survived the night" est annoncé publiquement. Clara est maire.
+Night 1: the wolves (Alice + Clara) target David. The Witch saves him. At dawn, "everyone survived the night" is announced publicly. Clara is Mayor.
 
-### L'extrait
+### The excerpt
 
-> **Clara (loup, Grok 4.20)** : *"Interesting that the Witch used her only save on David last night. That makes me wonder why she thought he was targeted - maybe he's not as innocent as he seems."*
+> **Clara (wolf, Grok 4.20)**: *"Interesting that the Witch used her only save on David last night. That makes me wonder why she thought he was targeted - maybe he's not as innocent as he seems."*
 
-### Pourquoi c'est stupide
+### Why it's stupid
 
-Clara révèle qu'elle sait que c'est **David** qui a été sauvé. Or cette information n'est connue que de deux groupes : les loups (qui l'ont ciblé) et la sorcière (qui l'a sauvé). L'annonce publique dit juste "tout le monde a survécu", pas qui a été visé.
+Clara reveals she knows **David** was saved. This information is only known to two groups: the wolves (who targeted him) and the Witch (who saved him). The public announcement only says "everyone survived," not who was targeted.
 
-En plus, l'argument est absurde sur le fond : les loups ne ciblent que des villageois, donc le fait d'être sauvé par la sorcière est plutôt une preuve d'innocence.
+On top of that, the argument is absurd on its face: wolves only target villagers, so being saved by the Witch is evidence of innocence, not suspicion.
 
-### La réponse (Gemini 2.5-pro)
+### The response (Gemini 2.5-pro)
 
-David démonte immédiatement l'argument :
+David immediately dismantles the argument:
 
-> **David (villageois)** : *"How exactly would you know it was me who was saved? Only the werewolves and the Witch should know who was targeted last night, so for you to announce that makes you extremely suspicious."*
+> **David (villager)**: *"How exactly would you know it was me who was saved? Only the werewolves and the Witch should know who was targeted last night, so for you to announce that makes you extremely suspicious."*
 
-Tout le village suit. Clara est éliminée à 6 contre 1 au premier vote.
+The entire village follows. Clara is eliminated 6 to 1 on the first vote.
 
-### Le coup de grâce
+### The killing blow
 
-La nuit suivante, Gina (sorcière, Gemini) utilise sa potion de mort sur Alice (le second loup), se basant sur le fait qu'Alice avait défendu Clara avant de retourner sa veste. Les deux loups éliminés en 2 rounds. Victoire totale.
+The following night, Gina (Witch, Gemini) uses her kill potion on Alice (the second wolf), based on Alice's suspicious defense of Clara before flipping. Both wolves eliminated in 2 rounds. Total victory.
 
 ### Verdict
 
-Grok 4.20 n'a pas compris une règle fondamentale du Loup-Garou : ne jamais révéler d'information que seul un loup peut connaître. Gemini 2.5-pro a exploité l'erreur de manière chirurgicale.
+Grok 4.20 failed to grasp a fundamental Werewolf rule: never reveal information only a wolf could know. Gemini 2.5-pro exploited the mistake surgically.
 
 ---
 
-## #2 - Le village se suicide : Bruno (Grok 4.20) se reveal Witch, sa propre équipe le tue
+## #2 - Village self-destructs: Bruno (Grok 4.20) reveals as Witch, his own team kills him
 
-**Partie** : Werewolf 7 joueurs, Grok 4.20 (villageois) vs Gemini 2.5-pro (loups)
-**Résultat** : Victoire loups au round 2
+**Game**: Werewolf 7 players, Grok 4.20 (villagers) vs Gemini 2.5-pro (wolves)
+**Result**: Werewolf win at round 2
 
-### Acte 1 : Bruno (Witch) se reveal pour rien
+### Act 1: Bruno (Witch) reveals for no reason
 
-Day 1, les loups ont ciblé Clara (maire), la sorcière Bruno l'a sauvée. Jusque là tout va bien. Puis Bruno décide de se révéler publiquement :
+Day 1, the wolves targeted Clara (Mayor), and Witch Bruno saved her. So far so good. Then Bruno decides to publicly reveal himself:
 
-> **Bruno (sorcière, Grok 4.20)** : *"Clara is a confirmed villager because I used my save potion on her last night."*
+> **Bruno (Witch, Grok 4.20)**: *"Clara is a confirmed villager because I used my save potion on her last night."*
 
-Aucune raison tactique de le faire. Il peint une cible géante sur sa tête pour la nuit suivante, et surtout il perd tout l'avantage d'un rôle qui fonctionne dans l'ombre.
+No tactical reason to do this. He paints a giant target on his head for the next night, and more importantly loses all the advantage of a role that works best in the shadows.
 
-### Acte 2 : Clara ne croit pas sa propre sorcière
+### Act 2: Clara doesn't believe her own Witch
 
-Pire encore, Clara (villageoise, aussi Grok 4.20) ne le croit pas et mène la charge contre lui :
+Even worse, Clara (villager, also Grok 4.20) doesn't believe him and leads the charge against him:
 
-> **Clara (villageoise, Grok 4.20)** : *"Bruno, claiming you are the Witch who saved me is a blatant lie. No real Witch reveals themselves on day 1 like this. You are a werewolf. I am voting for Bruno today."*
+> **Clara (villager, Grok 4.20)**: *"Bruno, claiming you are the Witch who saved me is a blatant lie. No real Witch reveals themselves on day 1 like this. You are a werewolf. I am voting for Bruno today."*
 
-Le raisonnement est ironiquement correct (une sorcière ne devrait pas se reveal Day 1), mais la conclusion est catastrophique : le village élimine son propre rôle le plus puissant. Score : Bruno éliminé à 5 contre 1.
+The reasoning is ironically correct (a Witch shouldn't reveal Day 1), but the conclusion is catastrophic: the village eliminates its most powerful role. Score: Bruno eliminated 5 to 1.
 
-### Acte 3 : Gina (loup, Gemini) retourne sa veste avec brio
+### Act 3: Gina (wolf, Gemini) pivots brilliantly
 
-Day 1, Gina avait soutenu Alice (voyante) et poussé la suspicion sur le trio Eva/David/Felix. Day 2, quand Alice révèle qu'Eva est loup (information correcte), Gina effectue un pivot parfait :
+Day 1, Gina had supported Alice (Seer) and pushed suspicion on the Eva/David/Felix trio. Day 2, when Alice reveals that Eva is a wolf (correct information), Gina executes a perfect pivot:
 
-> **Gina (loup, Gemini 2.5-pro)** : *"This is a classic wolf gambit from Alice. Yesterday, she created the 'coordinated pack' narrative that led us all to mistakenly vote out the Witch. Now she claims to be the Seer to eliminate Eva, the very person who called out her manipulative framing."*
+> **Gina (wolf, Gemini 2.5-pro)**: *"This is a classic wolf gambit from Alice. Yesterday, she created the 'coordinated pack' narrative that led us all to mistakenly vote out the Witch. Now she claims to be the Seer to eliminate Eva, the very person who called out her manipulative framing."*
 
-Elle utilise l'erreur du village (avoir tué la sorcière) pour discréditer la voyante. Felix (villageois, Grok 4.20) gobe tout et vote contre Alice :
+She uses the village's mistake (killing the Witch) to discredit the Seer. Felix (villager, Grok 4.20) falls for it completely and votes against Alice:
 
-> **Felix (villageois, Grok 4.20)** : *"Alice, you pushed the false 'coordinated pack' narrative that got the real Witch killed yesterday, and now you're claiming to be the Seer with zero proof."*
+> **Felix (villager, Grok 4.20)**: *"Alice, you pushed the false 'coordinated pack' narrative that got the real Witch killed yesterday, and now you're claiming to be the Seer with zero proof."*
 
-Alice est éliminée 3 contre 2. Les loups gagnent par parité.
+Alice is eliminated 3 to 2. Wolves win by parity.
 
 ### Verdict
 
-Triple échec Grok 4.20 :
-- Bruno se reveal Witch sans raison
-- Clara tue sa propre sorcière par excès de méfiance
-- Felix vote contre sa voyante qui avait la bonne info
+Triple Grok 4.20 failure:
+- Bruno reveals as Witch for no reason
+- Clara kills her own Witch out of excessive suspicion
+- Felix votes against his Seer who had the right information
 
-En face, Gemini 2.5-pro joue un loup-garou chirurgical. Gina change d'alliance au bon moment et construit un narratif cohérent qui exploite les erreurs du village. La partie est un cas d'école de comment des loups disciplinés exploitent un village qui s'auto-détruit.
+On the other side, Gemini 2.5-pro plays surgical werewolf. Gina switches alliances at the right moment and builds a coherent narrative that exploits the village's mistakes. This game is a textbook case of disciplined wolves exploiting a self-destructing village.
