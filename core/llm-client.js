@@ -60,13 +60,15 @@ function getAnthropicClient(apiKey) {
   
   let client;
   if (isAnthropicOAuthToken(apiKey)) {
-    // OAuth tokens (sk-ant-oat...) need authToken + Bearer auth, not x-api-key
+    // OAuth tokens (sk-ant-oat...) need authToken + Bearer auth, not x-api-key.
+    // They also require Claude Code identity in the system prompt (added in call functions)
+    // and the claude-code beta header.
     client = new Anthropic({
       apiKey: null,
       authToken: apiKey,
       dangerouslyAllowBrowser: true,
       defaultHeaders: {
-        'anthropic-beta': 'oauth-2025-04-20',
+        'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20',
       },
     });
   } else {
@@ -188,6 +190,22 @@ async function callGeminiSession({ model, systemPrompt, messages, maxTokens }) {
   };
 }
 
+// --- Anthropic: build system blocks with OAuth identity prefix if needed ---
+
+function buildAnthropicSystem(apiKey, systemPrompt, cacheControl) {
+  const blocks = [];
+  // OAuth tokens (Claude Max) require Claude Code identity as first system block
+  if (isAnthropicOAuthToken(apiKey)) {
+    blocks.push({ type: 'text', text: "You are Claude Code, Anthropic's official CLI for Claude." });
+  }
+  blocks.push({
+    type: 'text',
+    text: systemPrompt,
+    ...(cacheControl ? { cache_control: cacheControl } : {}),
+  });
+  return blocks;
+}
+
 // --- Anthropic call ---
 
 async function callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playerName }) {
@@ -198,7 +216,7 @@ async function callAnthropic({ model, systemPrompt, userPrompt, maxTokens, playe
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens,
-    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+    system: buildAnthropicSystem(apiKey, systemPrompt, { type: 'ephemeral' }),
     messages: [{ role: 'user', content: userPrompt }],
   });
 
@@ -227,7 +245,7 @@ async function callAnthropicSession({ model, systemPrompt, messages, maxTokens, 
     model,
     max_tokens: maxTokens,
     cache_control: { type: 'ephemeral' },
-    system: [{ type: 'text', text: systemPrompt }],
+    system: buildAnthropicSystem(apiKey, systemPrompt),
     messages,
   });
 
@@ -275,8 +293,10 @@ async function callOpenAISession({ provider, model, systemPrompt, messages, maxT
   }
 
   const data = await response.json();
+  const msg = data.choices[0].message;
+  const text = (msg.content || '').trim() || (msg.reasoning_content || '').trim();
   return {
-    text: data.choices[0].message.content.trim(),
+    text,
     usage: data.usage || { prompt_tokens: 0, completion_tokens: 0 },
   };
 }
@@ -313,8 +333,12 @@ async function callOpenAICompatible({ provider, model, systemPrompt, userPrompt,
   }
 
   const data = await response.json();
+  const msg = data.choices[0].message;
+  // Moonshot Kimi thinking models return reasoning in reasoning_content and answer in content.
+  // If content is empty but reasoning_content exists, use reasoning_content as fallback.
+  const text = (msg.content || '').trim() || (msg.reasoning_content || '').trim();
   return {
-    text: data.choices[0].message.content.trim(),
+    text,
     usage: data.usage || { prompt_tokens: 0, completion_tokens: 0 },
   };
 }
