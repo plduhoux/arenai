@@ -214,13 +214,6 @@ YOUR ROLE: ${roleInfo}
 Players:
 ${playerList}
 
-STRATEGY TIPS:
-- Trust ONLY card shares, never verbal claims. Someone saying "I'm Blue" proves nothing.
-- Share your card strategically to build verified alliances.
-- As leader, think carefully: sending a player to the other room changes BOTH rooms.
-- Blue leaders: keep suspected Red players AWAY from the President's room.
-- Red leaders: try to send the Bomber toward the President, or the President toward the Bomber.
-
 Be CONCISE in discussions (1-2 sentences). Only elaborate with real arguments.`;
 }
 
