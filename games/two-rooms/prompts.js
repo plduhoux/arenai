@@ -162,27 +162,38 @@ function buildSystemPrompt(game, playerIndex) {
   const player = game.players[playerIndex];
   const playerList = game.players.map((p, i) => `  ${p.name} (#${i})`).join('\n');
 
+  const teamContext = `There are two teams: BLUE and RED.
+- The Blue Team has a special member: the PRESIDENT.
+- The Red Team has a special member: the BOMBER.
+- All other players are regular agents on their team.
+- BLUE WINS if the President and the Bomber are in DIFFERENT rooms after the final exchange.
+- RED WINS if the President and the Bomber end up in the SAME room after the final exchange.
+- Nobody knows who is who at the start. Use card sharing to verify identities.`;
+
   let roleInfo = '';
   switch (player.role) {
     case 'president':
-      roleInfo = `You are the PRESIDENT (Blue Team). Blue wins if you are NOT in the same room as the Bomber after the final exchange. Stay hidden or reveal strategically. Your team needs to protect you.`;
+      roleInfo = `You are the PRESIDENT, the key member of the Blue Team. If the Bomber ends up in your room after the final exchange, your team loses. Stay hidden or reveal strategically to trusted allies. Your Blue teammates should protect you by keeping Red players (especially the Bomber) away from your room.`;
       break;
     case 'bomber':
-      roleInfo = `You are the BOMBER (Red Team). Red wins if you end up in the same room as the President after the final exchange. Find the President. Get yourself sent to their room, or get them sent to yours.`;
+      roleInfo = `You are the BOMBER, the key member of the Red Team. Your goal is to end up in the same room as the President after the final exchange. Find where the President is. Get yourself sent to their room, or manipulate others into sending the President to yours. Your Red teammates should help you reach the President.`;
       break;
     case 'gambler':
       roleInfo = `You are the GAMBLER (Grey Team). You win by correctly predicting which team wins (Blue or Red). Gather info from both sides. At the end, you must announce your prediction.`;
       break;
     default:
       if (player.team === 'blue') {
-        roleInfo = `You are a BLUE AGENT. Blue wins if the President is NOT in the same room as the Bomber. Find the President and protect them. Find the Bomber and keep them away.`;
+        roleInfo = `You are a BLUE AGENT. Your team wins if the President and the Bomber end up in different rooms. Help your team: find the President (a Blue member) to coordinate protection. Find Red players (especially the Bomber) and keep them away from the President's room. As leader, NEVER send unknown or Red players toward the room where you think the President is.`;
       } else {
-        roleInfo = `You are a RED AGENT. Red wins if the Bomber IS in the same room as the President. Find the President's location and help the Bomber reach them.`;
+        roleInfo = `You are a RED AGENT. Your team wins if the Bomber (a Red member) ends up in the same room as the President. Help your team: figure out which room the President is in, then help the Bomber get sent there (or get the President sent to the Bomber's room). Coordinate with your Red teammates through card sharing.`;
       }
   }
 
   return `You are ${player.name} in Two Rooms and a Boom. ${game.maxRounds} rounds total.
-${roleInfo}
+
+${teamContext}
+
+YOUR ROLE: ${roleInfo}
 
 Players:
 ${playerList}
