@@ -502,6 +502,19 @@ api.post('/games/:id/stop', (req, res) => {
   res.json({ ok: true, action: 'stopped' });
 });
 
+// Bulk save: set saved=1 for all given IDs (must be before :id/save)
+api.put('/games/bulk-save', (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
+  const stmt = db.getDb().prepare('UPDATE games SET saved = 1 WHERE id = ? AND status = ?');
+  let count = 0;
+  for (const id of ids) {
+    const r = stmt.run(id, 'finished');
+    count += r.changes;
+  }
+  res.json({ ok: true, count });
+});
+
 api.put('/games/:id/save', (req, res) => {
   const result = db.toggleSaved(req.params.id);
   if (!result) return res.status(404).json({ error: 'Game not found' });

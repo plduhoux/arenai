@@ -18,14 +18,49 @@
       <router-link to="/new" class="btn-primary">Start your first game</router-link>
     </div>
     <template v-else>
-      <div class="filter-bar">
+      <!-- Filters -->
+      <div class="filters-row">
+        <div class="filter-bar">
+          <button
+            v-for="f in gameTypeFilters"
+            :key="f.value"
+            class="filter-btn"
+            :class="{ active: activeFilter === f.value }"
+            @click="activeFilter = f.value"
+          >{{ f.label }} ({{ f.count }})</button>
+        </div>
+
+        <div class="model-filters">
+          <div class="model-filter">
+            <label>Good:</label>
+            <select v-model="goodModelFilter">
+              <option value="">All</option>
+              <option v-for="m in availableGoodModels" :key="m" :value="m">{{ shortModel(m) }}</option>
+            </select>
+          </div>
+          <div class="model-filter">
+            <label>Evil:</label>
+            <select v-model="evilModelFilter">
+              <option value="">All</option>
+              <option v-for="m in availableEvilModels" :key="m" :value="m">{{ shortModel(m) }}</option>
+            </select>
+          </div>
+          <button
+            v-if="goodModelFilter || evilModelFilter"
+            class="filter-btn clear-btn"
+            @click="goodModelFilter = ''; evilModelFilter = ''"
+          >Clear</button>
+        </div>
+      </div>
+
+      <!-- Bulk actions -->
+      <div class="bulk-bar" v-if="!isStatic">
         <button
-          v-for="f in gameTypeFilters"
-          :key="f.value"
-          class="filter-btn"
-          :class="{ active: activeFilter === f.value }"
-          @click="activeFilter = f.value"
-        >{{ f.label }} ({{ f.count }})</button>
+          v-if="unsavedFilteredCount > 0"
+          class="btn-small btn-star-all"
+          @click="starAllFiltered"
+        >★ Star all filtered ({{ unsavedFilteredCount }})</button>
+        <span class="filter-info">{{ modelFilteredGames.length }} games{{ goodModelFilter || evilModelFilter ? ' matching filters' : '' }}</span>
       </div>
 
       <div class="pagination-bar" v-if="totalPages > 1">
@@ -37,7 +72,7 @@
           @click="p !== '...' && goToPage(p)"
         >{{ p }}</button>
         <button class="page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">&gt;</button>
-        <span class="page-info">{{ allGames.length }} games</span>
+        <span class="page-info">{{ modelFilteredGames.length }} games</span>
       </div>
 
       <div class="table-scroll">
@@ -57,7 +92,7 @@
         </thead>
         <tbody>
           <tr
-            v-for="g in filteredGames"
+            v-for="g in paginatedGames"
             :key="g.id"
             class="game-row"
             @click="$router.push(`/game/${g.id}`)"
@@ -118,6 +153,8 @@ import { formatDate, formatTokens, shortModel } from '../utils/format'
 const allGames = ref([])
 const loading = ref(true)
 const activeFilter = ref('all')
+const goodModelFilter = ref('')
+const evilModelFilter = ref('')
 const currentPage = ref(1)
 const PAGE_SIZE = 100
 
@@ -145,20 +182,6 @@ const GAME_TYPE_LABELS = {
 
 function gameTypeLabel(type) {
   return GAME_TYPE_LABELS[type] || type || 'Secret Dictator'
-}
-
-function winnerClass(g) {
-  if (g.status === 'running') return 'winner-running'
-  if (!g.winner || g.winner === 'draw') return 'winner-draw'
-  return isWinnerGood(g) ? 'winner-good' : 'winner-evil'
-}
-
-function winnerText(g) {
-  if (g.status === 'running') return 'Running...'
-  if (!g.winner || g.winner === 'draw') return 'Draw'
-  const { goodModel, evilModel } = getModels(g)
-  const isGood = ['liberal', 'villager', 'blue'].includes(g.winner)
-  return shortModel(isGood ? goodModel : evilModel)
 }
 
 function getModels(g) {
@@ -190,20 +213,12 @@ function factionClass(g, side) {
   return `matchup-${side}${won ? ' matchup-winner' : ' matchup-loser'}`
 }
 
-function factionLabel(g, side) {
-  const type = g.game_type || 'secret-dictator'
-  const labels = FACTION_LABELS[type] || FACTION_LABELS['secret-dictator']
-  return side === 'good' ? labels.good : labels.evil
-}
-
 function factionModel(g, side) {
   const { goodModel, evilModel } = getModels(g)
   return shortModel(side === 'good' ? goodModel : evilModel)
 }
 
-function factionColorClass(g, side) {
-  return side === 'good' ? 'model-good' : 'model-evil'
-}
+// --- Filters ---
 
 const gameTypeFilters = computed(() => {
   const counts = { all: allGames.value.length }
@@ -223,11 +238,47 @@ const typeFilteredGames = computed(() => {
   return allGames.value.filter(g => (g.game_type || 'secret-dictator') === activeFilter.value)
 })
 
-const totalPages = computed(() => Math.ceil(typeFilteredGames.value.length / PAGE_SIZE))
+// Available models for filters (based on type-filtered games)
+const availableGoodModels = computed(() => {
+  const models = new Set()
+  for (const g of typeFilteredGames.value) {
+    const { goodModel } = getModels(g)
+    if (goodModel) models.add(goodModel)
+  }
+  return [...models].sort()
+})
 
-const filteredGames = computed(() => {
+const availableEvilModels = computed(() => {
+  const models = new Set()
+  for (const g of typeFilteredGames.value) {
+    const { evilModel } = getModels(g)
+    if (evilModel) models.add(evilModel)
+  }
+  return [...models].sort()
+})
+
+const modelFilteredGames = computed(() => {
+  let games = typeFilteredGames.value
+  if (goodModelFilter.value) {
+    games = games.filter(g => {
+      const { goodModel } = getModels(g)
+      return goodModel === goodModelFilter.value
+    })
+  }
+  if (evilModelFilter.value) {
+    games = games.filter(g => {
+      const { evilModel } = getModels(g)
+      return evilModel === evilModelFilter.value
+    })
+  }
+  return games
+})
+
+const totalPages = computed(() => Math.ceil(modelFilteredGames.value.length / PAGE_SIZE))
+
+const paginatedGames = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
-  return typeFilteredGames.value.slice(start, start + PAGE_SIZE)
+  return modelFilteredGames.value.slice(start, start + PAGE_SIZE)
 })
 
 const displayedPages = computed(() => {
@@ -247,14 +298,20 @@ function goToPage(p) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Reset page when filter changes
-watch(activeFilter, () => { currentPage.value = 1 })
+// Reset page when any filter changes
+watch([activeFilter, goodModelFilter, evilModelFilter], () => { currentPage.value = 1 })
 
-const games = allGames // alias for template compatibility
+const games = allGames
 
 const unfinishedCount = computed(() =>
   allGames.value.filter(g => g.status !== 'finished').length
 )
+
+const unsavedFilteredCount = computed(() =>
+  modelFilteredGames.value.filter(g => g.status === 'finished' && !g.saved).length
+)
+
+// --- Actions ---
 
 async function toggleSave(g) {
   try {
@@ -262,6 +319,27 @@ async function toggleSave(g) {
     if (res.ok) {
       const { saved } = await res.json()
       g.saved = saved
+    }
+  } catch {}
+}
+
+async function starAllFiltered() {
+  const ids = modelFilteredGames.value
+    .filter(g => g.status === 'finished' && !g.saved)
+    .map(g => g.id)
+  if (!ids.length) return
+  try {
+    const res = await fetch('/api/games/bulk-save', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    if (res.ok) {
+      const { count } = await res.json()
+      // Update local state
+      for (const g of allGames.value) {
+        if (ids.includes(g.id)) g.saved = 1
+      }
     }
   } catch {}
 }
@@ -306,10 +384,16 @@ onMounted(async () => {
 </script>
 
 <style>
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
 .filter-bar {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 .filter-btn {
   padding: 0.4rem 0.8rem;
@@ -324,6 +408,58 @@ onMounted(async () => {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+.clear-btn {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  opacity: 0.7;
+}
+
+.model-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.model-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.model-filter label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.model-filter select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 0.8rem;
+  max-width: 160px;
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.btn-star-all {
+  background: rgba(232, 164, 58, 0.15);
+  border: 1px solid rgba(232, 164, 58, 0.4);
+  color: #e8a43a;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.btn-star-all:hover {
+  background: rgba(232, 164, 58, 0.3);
+}
+.filter-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
 .games-table {
@@ -376,7 +512,6 @@ onMounted(async () => {
   padding: 0 0.2rem !important;
   width: 1.5rem;
 }
-.matchup-vs { color: var(--text-secondary); margin: 0 0.4rem; font-size: 0.8rem; }
 .matchup-good, .matchup-evil {
   display: inline-block;
   padding: 0.15rem 0.5rem;
@@ -385,23 +520,9 @@ onMounted(async () => {
 }
 .matchup-good { color: var(--liberal); }
 .matchup-evil { color: var(--fascist); }
-.matchup-model { color: var(--text-secondary); font-family: monospace; font-size: 0.75rem; }
 .matchup-winner.matchup-good { background: rgba(59, 130, 246, 0.15); font-weight: 700; }
 .matchup-winner.matchup-evil { background: rgba(239, 68, 68, 0.15); font-weight: 700; }
 .matchup-loser { opacity: 0.5; }
-
-.winner-badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.winner-good { background: #2d5a27; color: #9eff8a; }
-.winner-evil { background: #5a2727; color: #ff8a8a; }
-.winner-running { background: #4a4a1a; color: #e8e87a; }
-.winner-draw { background: #3a3a3a; color: #aaa; }
 
 .header-actions {
   display: flex;
@@ -424,7 +545,6 @@ onMounted(async () => {
   transition: opacity 0.15s;
   filter: grayscale(1);
 }
-
 .btn-delete-small:hover {
   opacity: 1;
   filter: none;
