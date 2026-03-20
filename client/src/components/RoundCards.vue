@@ -49,6 +49,8 @@ const props = defineProps({
 const ROLE_ICONS = {
   seer: '\uD83D\uDD2E',    // 🔮
   witch: '\uD83E\uDDD9\u200D\u2640\uFE0F', // 🧙‍♀️
+  president: '\uD83C\uDFDB\uFE0F', // 🏛️
+  bomber: '\uD83D\uDCA3',  // 💣
 }
 
 // Build a player map from game_start event for faction colors + roles
@@ -132,17 +134,17 @@ const rounds = computed(() => {
       const name = e.playerName || e.player
       if (!entry._leaders) entry._leaders = {}
       entry._leaders[e.room] = name
-      // Rebuild leader line
-      entry.lines = entry.lines.filter(l => !l.startsWith('Leader'))
+      // Rebuild leader line with room labels
+      entry.lines = entry.lines.filter(l => !l.includes('Leader'))
       const parts = []
-      if (entry._leaders.A) parts.push(colorName(entry._leaders.A))
-      if (entry._leaders.B) parts.push(colorName(entry._leaders.B))
-      entry.lines.unshift(`Leader: ${parts.join(' / ')}`)
+      if (entry._leaders.A) parts.push(`A: ${colorName(entry._leaders.A)}`)
+      if (entry._leaders.B) parts.push(`B: ${colorName(entry._leaders.B)}`)
+      entry.lines.unshift(`Leader ${parts.join(' | ')}`)
     }
     if (e.type === 'exchange') {
       const aToB = (e.aToB||[]).map(n => colorName(n)).join(', ')
       const bToA = (e.bToA||[]).map(n => colorName(n)).join(', ')
-      entry.lines.push(`Hostage: ${aToB} \u2194 ${bToA}`)
+      entry.lines.push(`Hostage A\u2192B: ${aToB} | B\u2192A: ${bToA}`)
     }
   }
 
