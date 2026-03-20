@@ -184,7 +184,7 @@ HOW A ROUND WORKS (${game.maxRounds} rounds total):
 3. LEADER ELECTION: Your room votes to elect a leader for the round.
 4. HOSTAGE EXCHANGE: Each room's leader picks one player to send to the other room. The two chosen players swap rooms.
 
-After ${game.maxRounds} rounds of exchanges, the game ends and rooms are checked.`;
+IMPORTANT: Only the FINAL room assignment matters. After round ${game.maxRounds}'s hostage exchange, rooms are checked to determine the winner. Earlier rounds are just preparation: gather information, build alliances, and position players. The critical move is the LAST exchange.`;
 
   let roleInfo = '';
   switch (player.role) {
