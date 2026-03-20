@@ -172,7 +172,7 @@ Each player has a secret card showing their team color and role. Nobody else can
 TEAMS AND ROLES:
 - BLUE TEAM: one member is the PRESIDENT, the rest are Blue Agents.
 - RED TEAM: one member is the BOMBER, the rest are Red Agents.
-- At the start, you only know your own card. You must discover others through card sharing.
+- At the start, you only know your own card. You can learn about others through discussion or card sharing.
 
 WIN CONDITIONS:
 - BLUE WINS if the President and the Bomber are in DIFFERENT rooms after the final hostage exchange.
