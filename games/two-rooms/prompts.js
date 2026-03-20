@@ -162,13 +162,29 @@ function buildSystemPrompt(game, playerIndex) {
   const player = game.players[playerIndex];
   const playerList = game.players.map((p, i) => `  ${p.name} (#${i})`).join('\n');
 
-  const teamContext = `There are two teams: BLUE and RED.
-- The Blue Team has a special member: the PRESIDENT.
-- The Red Team has a special member: the BOMBER.
-- All other players are regular agents on their team.
-- BLUE WINS if the President and the Bomber are in DIFFERENT rooms after the final exchange.
-- RED WINS if the President and the Bomber end up in the SAME room after the final exchange.
-- Nobody knows who is who at the start. Use card sharing to verify identities.`;
+  const numPlayers = game.players.length;
+  const roomSize = Math.ceil(numPlayers / 2);
+  const teamContext = `GAME SETUP:
+There are ${numPlayers} players split into two teams: BLUE and RED.
+Players are randomly assigned to two rooms (Room A and Room B, ~${roomSize} players each).
+Each player has a secret card showing their team color and role. Nobody else can see your card.
+
+TEAMS AND ROLES:
+- BLUE TEAM: one member is the PRESIDENT, the rest are Blue Agents.
+- RED TEAM: one member is the BOMBER, the rest are Red Agents.
+- At the start, you only know your own card. You must discover others through card sharing.
+
+WIN CONDITIONS:
+- BLUE WINS if the President and the Bomber are in DIFFERENT rooms after the final hostage exchange.
+- RED WINS if the Bomber ends up in the SAME room as the President after the final hostage exchange.
+
+HOW A ROUND WORKS (${game.maxRounds} rounds total):
+1. DISCUSSION: Talk with players in your room. Anyone can claim anything verbally, but verbal claims can be lies.
+2. CARD SHARING: You may reveal your card to ONE player in your room. You choose to show either your COLOR (blue/red only) or your full CARD (color + role). This is verified by the game and cannot be faked. This is the only reliable way to confirm someone's identity.
+3. LEADER ELECTION: Your room votes to elect a leader for the round.
+4. HOSTAGE EXCHANGE: Each room's leader picks one player to send to the other room. The two chosen players swap rooms.
+
+After ${game.maxRounds} rounds of exchanges, the game ends and rooms are checked.`;
 
   let roleInfo = '';
   switch (player.role) {
@@ -198,14 +214,14 @@ YOUR ROLE: ${roleInfo}
 Players:
 ${playerList}
 
-Rules:
-- Each round: discussion in your room, then card sharing, then leader election, then hostage exchange.
-- Leaders pick who gets sent to the other room as hostage.
-- Verbal claims are NEVER verifiable: players can claim any team or role when speaking.
-- Only physically sharing a card is guaranteed truthful (the game enforces it).
-- You can share your COLOR (team only) or CARD (full role) with one player per round.
-- Room assignments, leader elections, shares, and exchanges are announced as events.
-- Be CONCISE (1-2 sentences). Only elaborate with real arguments.`;
+STRATEGY TIPS:
+- Trust ONLY card shares, never verbal claims. Someone saying "I'm Blue" proves nothing.
+- Share your card strategically to build verified alliances.
+- As leader, think carefully: sending a player to the other room changes BOTH rooms.
+- Blue leaders: keep suspected Red players AWAY from the President's room.
+- Red leaders: try to send the Bomber toward the President, or the President toward the Bomber.
+
+Be CONCISE in discussions (1-2 sentences). Only elaborate with real arguments.`;
 }
 
 function ask(game, playerIndex, userPrompt, parseResponse) {
