@@ -15,8 +15,8 @@
           >{{ gameTypeLabel(gt) }}</button>
         </div>
         <div class="model-filter-wrap" @click.stop>
-          <button class="filter-pill model-filter-btn" :class="{ active: excludedModels.size > 0 }" @click="modelFilterOpen = !modelFilterOpen">
-            Models{{ excludedModels.size > 0 ? ` (${allModels.length - excludedModels.size}/${allModels.length})` : '' }}
+          <button class="filter-pill model-filter-btn" :class="{ active: activeExcludedCount > 0 }" @click="modelFilterOpen = !modelFilterOpen">
+            Models{{ activeExcludedCount > 0 ? ` (${allModels.length - activeExcludedCount}/${allModels.length})` : '' }}
           </button>
           <div v-if="modelFilterOpen" class="model-filter-popover">
             <label v-for="m in allModels" :key="m" class="model-filter-item" @click.prevent="toggleModel(m)">
@@ -434,6 +434,15 @@ function toggleModel(model) {
 function isModelVisible(model) {
   return !excludedModels.value.has(model)
 }
+
+// Count only exclusions that match known models (ignore stale localStorage entries)
+const activeExcludedCount = computed(() => {
+  let count = 0
+  for (const m of excludedModels.value) {
+    if (knownModels.value.includes(m)) count++
+  }
+  return count
+})
 
 // Head-to-head matrix (filtered)
 const h2hModels = computed(() => {
