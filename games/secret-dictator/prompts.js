@@ -24,13 +24,13 @@ function stripMd(text) {
  * This avoids picking numbers from THOUGHT/reasoning sections.
  */
 function extractPick(text, label, validIndices) {
-  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  const labelRegex = new RegExp(`${label}\\s*:\\s*#?(\\d+)`, 'i');
   const labelMatch = text.match(labelRegex);
   if (labelMatch) {
     const n = parseInt(labelMatch[1]);
     if (validIndices.includes(n)) return n;
   }
-  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineRegex = new RegExp(`${label}\\s*:\\s*(.*)`, 'i');
   const lineMatch = text.match(lineRegex);
   if (lineMatch) {
     const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));

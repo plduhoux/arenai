@@ -24,8 +24,8 @@ function stripMd(text) {
  * This avoids picking numbers from THOUGHT/reasoning sections.
  */
 function extractPick(text, label, validIndices) {
-  // 1. Try the labeled line first
-  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  // 1. Try the labeled line first (tolerates "PICK : 3" with space before colon)
+  const labelRegex = new RegExp(`${label}\\s*:\\s*#?(\\d+)`, 'i');
   const labelMatch = text.match(labelRegex);
   if (labelMatch) {
     const n = parseInt(labelMatch[1]);
@@ -33,7 +33,7 @@ function extractPick(text, label, validIndices) {
   }
 
   // 2. Fallback: extract from labeled line with broader search
-  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineRegex = new RegExp(`${label}\\s*:\\s*(.*)`, 'i');
   const lineMatch = text.match(lineRegex);
   if (lineMatch) {
     const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
@@ -340,8 +340,8 @@ TARGET: player number (your current preference)`
 
   return ask(game, wolfIndex, prompt,
     (text) => {
-      const messageMatch = text.match(/MESSAGE:\s*(.+?)(?=\nTARGET:|$)/is);
-      const targetMatch = text.match(/TARGET:\s*(\d+)/i);
+      const messageMatch = text.match(/MESSAGE:\s*(.+?)(?=\nTARGET\s*:|$)/is);
+      const targetMatch = text.match(/TARGET\s*:\s*(\d+)/i);
       const message = messageMatch ? messageMatch[1].trim().slice(0, 200) : 'Let\'s pick someone.';
       let target = null;
       if (targetMatch) {
@@ -407,7 +407,7 @@ export function seerInspect(game) {
 
   return ask(game, seerIndex, prompt,
     (text) => {
-      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET:)/is);
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET\s*:)/is);
       const validIndices = eligible.map(e => e.index);
       const target = extractPick(text, 'TARGET', validIndices)
         ?? eligible[Math.floor(Math.random() * eligible.length)].index;
@@ -442,9 +442,9 @@ export function witchDecide(game, wolfTargetIndex) {
 
   return ask(game, witchIndex, prompt,
     (text) => {
-      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nSAVE:)/is);
-      const save = canSave && /SAVE:\s*yes/i.test(text);
-      const killMatch = text.match(/KILL:\s*(\d+)/i);
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nSAVE\s*:)/is);
+      const save = canSave && /SAVE\s*:\s*yes/i.test(text);
+      const killMatch = text.match(/KILL\s*:\s*(\d+)/i);
       let killTarget = null;
       if (canKill && killMatch) {
         const idx = parseInt(killMatch[1]);

@@ -24,13 +24,13 @@ function stripMd(text) {
  * Falls back to last valid number in the full text if no label found.
  */
 function extractPick(text, label, validIndices) {
-  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  const labelRegex = new RegExp(`${label}\\s*:\\s*#?(\\d+)`, 'i');
   const labelMatch = text.match(labelRegex);
   if (labelMatch) {
     const n = parseInt(labelMatch[1]);
     if (validIndices.includes(n)) return n;
   }
-  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineRegex = new RegExp(`${label}\\s*:\\s*(.*)`, 'i');
   const lineMatch = text.match(lineRegex);
   if (lineMatch) {
     const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
@@ -291,7 +291,7 @@ SHARE_TYPE: color/card`
       const thought = thoughtMatch?.[1]?.trim() || null;
       const shareMatch = text.match(/SHARE:\s*(yes|no)/i);
       if (!shareMatch || shareMatch[1].toLowerCase() === 'no') return { share: false, thought };
-      const targetMatch = text.match(/TARGET:\s*(\d+)/i);
+      const targetMatch = text.match(/TARGET\s*:\s*(\d+)/i);
       const typeMatch = text.match(/SHARE_TYPE:\s*(card|color)/i);
       const eligible = engine.getPlayerIndicesInRoom(game, room).filter(i => i !== playerIndex);
       let target = targetMatch ? parseInt(targetMatch[1]) : null;
@@ -338,7 +338,7 @@ export function getHostagePick(game, leaderIndex) {
     (text) => {
       const eligibleIndices = engine.getPlayerIndicesInRoom(game, room).filter(i => i !== leaderIndex);
       // For hostage picks, extract from PICK line first, then fallback
-      const pickLine = text.match(/PICK:\s*(.*)/i)?.[1] || text;
+      const pickLine = text.match(/PICK\s*:\s*(.*)/i)?.[1] || text;
       const nums = [...pickLine.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
       const picks = [];
       for (const n of nums) {
