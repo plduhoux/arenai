@@ -9,10 +9,23 @@
       style="cursor: pointer"
     >
       <div class="rc-round">R{{ r.round }}</div>
-      <!-- Two Rooms: leader + hostage with colors -->
+      <!-- Two Rooms: mini table A | B -->
       <template v-if="gameType === 'two-rooms'">
-        <div class="rc-lines">
-          <div v-for="(line, i) in r.lines" :key="i" class="rc-line" v-html="line" />
+        <div class="rc-two-rooms">
+          <div class="rc-tr-header">
+            <span class="rc-tr-col">A</span>
+            <span class="rc-tr-col">B</span>
+          </div>
+          <div class="rc-tr-row" v-if="r._leaders">
+            <span class="rc-tr-label">Leader</span>
+            <span class="rc-tr-col" v-html="r._leaders.A ? colorNameFn(r._leaders.A) : '-'"></span>
+            <span class="rc-tr-col" v-html="r._leaders.B ? colorNameFn(r._leaders.B) : '-'"></span>
+          </div>
+          <div class="rc-tr-row" v-if="r._hostages">
+            <span class="rc-tr-label">Hostage</span>
+            <span class="rc-tr-col" v-html="r._hostages.aToB || '-'"></span>
+            <span class="rc-tr-col" v-html="r._hostages.bToA || '-'"></span>
+          </div>
         </div>
       </template>
       <!-- Secret Dictator -->
@@ -71,6 +84,9 @@ function colorName(name) {
   const icon = ROLE_ICONS[info.role] || ''
   return `<span class="${cssClass}">${name}</span>${icon ? ' ' + icon : ''}`
 }
+
+// Expose for template
+const colorNameFn = (name) => colorName(name)
 
 function scrollToRound(round) {
   const el = document.getElementById(`round-${round}`)
@@ -134,17 +150,12 @@ const rounds = computed(() => {
       const name = e.playerName || e.player
       if (!entry._leaders) entry._leaders = {}
       entry._leaders[e.room] = name
-      // Rebuild leader line with room labels
-      entry.lines = entry.lines.filter(l => !l.includes('Leader'))
-      const parts = []
-      if (entry._leaders.A) parts.push(`A: ${colorName(entry._leaders.A)}`)
-      if (entry._leaders.B) parts.push(`B: ${colorName(entry._leaders.B)}`)
-      entry.lines.unshift(`Leader ${parts.join(' | ')}`)
     }
     if (e.type === 'exchange') {
-      const aToB = (e.aToB||[]).map(n => colorName(n)).join(', ')
-      const bToA = (e.bToA||[]).map(n => colorName(n)).join(', ')
-      entry.lines.push(`Hostage A\u2192B: ${aToB} | B\u2192A: ${bToA}`)
+      entry._hostages = {
+        aToB: (e.aToB||[]).map(n => colorName(n)).join(', '),
+        bToA: (e.bToA||[]).map(n => colorName(n)).join(', '),
+      }
     }
   }
 
@@ -173,5 +184,42 @@ const rounds = computed(() => {
 :deep(.rc-name-evil) {
   color: #ff6b6b;
   font-weight: 600;
+}
+
+.rc-two-rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  width: 100%;
+}
+
+.rc-tr-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding-left: 2.5rem;
+  color: #666;
+  font-weight: 700;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rc-tr-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 1fr;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.rc-tr-label {
+  color: #666;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.rc-tr-col {
+  text-align: center;
+  color: #aaa;
 }
 </style>
