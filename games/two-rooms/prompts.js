@@ -214,7 +214,7 @@ YOUR ROLE: ${roleInfo}
 Players:
 ${playerList}
 
-Be CONCISE in discussions (1-2 sentences). Only elaborate with real arguments.`;
+Be concise in discussions.`;
 }
 
 function ask(game, playerIndex, userPrompt, parseResponse) {
@@ -262,7 +262,7 @@ export function getRoomDiscussion(game, playerIndex, turn = 0) {
 Other players here: ${roommates}
 
 ${thoughtPrompt}
-MESSAGE: your public statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
+MESSAGE: your public statement. Say MESSAGE: PASS to stay silent.`
     : `Your turn to speak (Room ${room}, turn ${turn + 1}/${discussionTurns}).${thoughtPrompt}\nMESSAGE: your statement or PASS`;
 
   return ask(game, playerIndex, prompt,
