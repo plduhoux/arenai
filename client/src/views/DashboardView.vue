@@ -28,39 +28,40 @@
             :class="{ active: activeFilter === f.value }"
             @click="activeFilter = f.value"
           >{{ f.label }} ({{ f.count }})</button>
+
+          <div class="model-filter-wrap" @click.stop>
+            <button class="filter-btn model-filter-btn" :class="{ active: selectedGoodModels.size > 0 }" @click="goodFilterOpen = !goodFilterOpen; evilFilterOpen = false">
+              Good{{ selectedGoodModels.size > 0 ? ` (${selectedGoodModels.size})` : '' }}
+            </button>
+            <div v-if="goodFilterOpen" class="model-filter-popover">
+              <label v-for="m in availableGoodModels" :key="m" class="model-filter-item" @click.prevent="toggleGoodModel(m)">
+                <input type="checkbox" :checked="selectedGoodModels.has(m)" tabindex="-1" />
+                <span>{{ shortModel(m) }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="model-filter-wrap" @click.stop>
+            <button class="filter-btn model-filter-btn" :class="{ active: selectedEvilModels.size > 0 }" @click="evilFilterOpen = !evilFilterOpen; goodFilterOpen = false">
+              Evil{{ selectedEvilModels.size > 0 ? ` (${selectedEvilModels.size})` : '' }}
+            </button>
+            <div v-if="evilFilterOpen" class="model-filter-popover">
+              <label v-for="m in availableEvilModels" :key="m" class="model-filter-item" @click.prevent="toggleEvilModel(m)">
+                <input type="checkbox" :checked="selectedEvilModels.has(m)" tabindex="-1" />
+                <span>{{ shortModel(m) }}</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <div class="model-filters">
-          <div class="model-filter">
-            <label>Good:</label>
-            <select v-model="goodModelFilter">
-              <option value="">All</option>
-              <option v-for="m in availableGoodModels" :key="m" :value="m">{{ shortModel(m) }}</option>
-            </select>
-          </div>
-          <div class="model-filter">
-            <label>Evil:</label>
-            <select v-model="evilModelFilter">
-              <option value="">All</option>
-              <option v-for="m in availableEvilModels" :key="m" :value="m">{{ shortModel(m) }}</option>
-            </select>
-          </div>
+        <div class="filter-right">
+          <span class="filter-info">{{ modelFilteredGames.length }} games</span>
           <button
-            v-if="goodModelFilter || evilModelFilter"
-            class="filter-btn clear-btn"
-            @click="goodModelFilter = ''; evilModelFilter = ''"
-          >Clear</button>
+            v-if="!isStatic && unsavedFilteredCount > 0"
+            class="btn-small btn-star-all"
+            @click="starAllFiltered"
+          >★ Star all ({{ unsavedFilteredCount }})</button>
         </div>
-      </div>
-
-      <!-- Bulk actions -->
-      <div class="bulk-bar" v-if="!isStatic">
-        <button
-          v-if="unsavedFilteredCount > 0"
-          class="btn-small btn-star-all"
-          @click="starAllFiltered"
-        >★ Star all filtered ({{ unsavedFilteredCount }})</button>
-        <span class="filter-info">{{ modelFilteredGames.length }} games{{ goodModelFilter || evilModelFilter ? ' matching filters' : '' }}</span>
       </div>
 
       <div class="pagination-bar" v-if="totalPages > 1">
@@ -153,10 +154,31 @@ import { formatDate, formatTokens, shortModel } from '../utils/format'
 const allGames = ref([])
 const loading = ref(true)
 const activeFilter = ref('all')
-const goodModelFilter = ref('')
-const evilModelFilter = ref('')
+const selectedGoodModels = ref(new Set())
+const selectedEvilModels = ref(new Set())
+const goodFilterOpen = ref(false)
+const evilFilterOpen = ref(false)
 const currentPage = ref(1)
 const PAGE_SIZE = 100
+
+function toggleGoodModel(m) {
+  const s = selectedGoodModels.value
+  if (s.has(m)) s.delete(m); else s.add(m)
+  selectedGoodModels.value = new Set(s) // trigger reactivity
+}
+function toggleEvilModel(m) {
+  const s = selectedEvilModels.value
+  if (s.has(m)) s.delete(m); else s.add(m)
+  selectedEvilModels.value = new Set(s)
+}
+
+// Close popovers on outside click
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', () => {
+    goodFilterOpen.value = false
+    evilFilterOpen.value = false
+  })
+}
 
 const FACTION_LABELS = {
   'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
@@ -259,16 +281,16 @@ const availableEvilModels = computed(() => {
 
 const modelFilteredGames = computed(() => {
   let games = typeFilteredGames.value
-  if (goodModelFilter.value) {
+  if (selectedGoodModels.value.size > 0) {
     games = games.filter(g => {
       const { goodModel } = getModels(g)
-      return goodModel === goodModelFilter.value
+      return selectedGoodModels.value.has(goodModel)
     })
   }
-  if (evilModelFilter.value) {
+  if (selectedEvilModels.value.size > 0) {
     games = games.filter(g => {
       const { evilModel } = getModels(g)
-      return evilModel === evilModelFilter.value
+      return selectedEvilModels.value.has(evilModel)
     })
   }
   return games
@@ -299,7 +321,7 @@ function goToPage(p) {
 }
 
 // Reset page when any filter changes
-watch([activeFilter, goodModelFilter, evilModelFilter], () => { currentPage.value = 1 })
+watch([activeFilter, selectedGoodModels, selectedEvilModels], () => { currentPage.value = 1 })
 
 const games = allGames
 
@@ -386,14 +408,15 @@ onMounted(async () => {
 <style>
 .filters-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
   margin-bottom: 0.75rem;
+  gap: 1rem;
 }
 .filter-bar {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
 }
 .filter-btn {
   padding: 0.4rem 0.8rem;
@@ -409,41 +432,52 @@ onMounted(async () => {
   color: #fff;
   border-color: var(--accent);
 }
-.clear-btn {
-  font-size: 0.75rem;
-  padding: 0.3rem 0.5rem;
-  opacity: 0.7;
-}
 
-.model-filters {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.model-filter {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.model-filter label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-.model-filter select {
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text);
-  font-size: 0.8rem;
-  max-width: 160px;
-}
-
-.bulk-bar {
+.filter-right {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+}
+
+.model-filter-wrap {
+  position: relative;
+}
+.model-filter-btn {
+  font-size: 0.78rem;
+}
+.model-filter-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  margin-top: 0.3rem;
+  background: var(--bg, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.model-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text);
+  user-select: none;
+}
+.model-filter-item:hover {
+  background: var(--bg-secondary);
+}
+.model-filter-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  pointer-events: none;
 }
 .btn-star-all {
   background: rgba(232, 164, 58, 0.15);
