@@ -199,9 +199,9 @@ After ${game.maxRounds} rounds of exchanges, the game ends and rooms are checked
       break;
     default:
       if (player.team === 'blue') {
-        roleInfo = `You are a BLUE AGENT. Your team wins if the President and the Bomber end up in different rooms. Help your team: find the President (a Blue member) to coordinate protection. Find Red players (especially the Bomber) and keep them away from the President's room. As leader, NEVER send unknown or Red players toward the room where you think the President is.`;
+        roleInfo = `You are a BLUE AGENT. Your team wins if the President and the Bomber end up in different rooms. Protect the President.`;
       } else {
-        roleInfo = `You are a RED AGENT. Your team wins if the Bomber (a Red member) ends up in the same room as the President. Help your team: figure out which room the President is in, then help the Bomber get sent there (or get the President sent to the Bomber's room). Coordinate with your Red teammates through card sharing.`;
+        roleInfo = `You are a RED AGENT. Your team wins if the Bomber ends up in the same room as the President. Kill the President.`;
       }
   }
 
