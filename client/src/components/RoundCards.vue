@@ -9,24 +9,29 @@
       style="cursor: pointer"
     >
       <div class="rc-round">R{{ r.round }}</div>
-      <!-- Two Rooms: mini table A | B -->
+      <!-- Two Rooms: proper table A | B -->
       <template v-if="gameType === 'two-rooms'">
-        <div class="rc-two-rooms">
-          <div class="rc-tr-header">
-            <span class="rc-tr-col">A</span>
-            <span class="rc-tr-col">B</span>
-          </div>
-          <div class="rc-tr-row" v-if="r._leaders">
-            <span class="rc-tr-label">Leader</span>
-            <span class="rc-tr-col" v-html="r._leaders.A ? colorNameFn(r._leaders.A) : '-'"></span>
-            <span class="rc-tr-col" v-html="r._leaders.B ? colorNameFn(r._leaders.B) : '-'"></span>
-          </div>
-          <div class="rc-tr-row" v-if="r._hostages">
-            <span class="rc-tr-label">Hostage</span>
-            <span class="rc-tr-col" v-html="r._hostages.aToB || '-'"></span>
-            <span class="rc-tr-col" v-html="r._hostages.bToA || '-'"></span>
-          </div>
-        </div>
+        <table class="rc-tr-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>A</th>
+              <th>B</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="r._leaders">
+              <td class="rc-tr-label">Leader</td>
+              <td v-html="r._leaders.A ? colorNameFn(r._leaders.A) : '-'"></td>
+              <td v-html="r._leaders.B ? colorNameFn(r._leaders.B) : '-'"></td>
+            </tr>
+            <tr v-if="r._hostages">
+              <td class="rc-tr-label">Hostage</td>
+              <td v-html="r._hostages.aToB || '-'"></td>
+              <td v-html="r._hostages.bToA || '-'"></td>
+            </tr>
+          </tbody>
+        </table>
       </template>
       <!-- Secret Dictator -->
       <template v-else-if="gameType !== 'werewolf'">
@@ -186,40 +191,46 @@ const rounds = computed(() => {
   font-weight: 600;
 }
 
-.rc-two-rooms {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.7rem;
+.rc-tr-table {
   width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  margin-top: 2px;
 }
 
-.rc-tr-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding-left: 2.5rem;
+.rc-tr-table th {
   color: #666;
-  font-weight: 700;
   font-size: 0.6rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  padding: 1px 4px 2px;
+  text-align: center;
+  border-bottom: 1px solid #333;
 }
 
-.rc-tr-row {
-  display: grid;
-  grid-template-columns: 2.5rem 1fr 1fr;
-  align-items: center;
-  line-height: 1.4;
+.rc-tr-table th:first-child {
+  text-align: left;
+  width: 3rem;
+}
+
+.rc-tr-table td {
+  padding: 2px 4px;
+  text-align: center;
+  color: #aaa;
+  border-left: 1px solid #333;
+  white-space: nowrap;
+}
+
+.rc-tr-table td:first-child {
+  border-left: none;
 }
 
 .rc-tr-label {
   color: #666;
   font-size: 0.6rem;
+  font-weight: 600;
   text-transform: uppercase;
-}
-
-.rc-tr-col {
-  text-align: center;
-  color: #aaa;
+  text-align: left !important;
 }
 </style>
