@@ -55,6 +55,11 @@
         </div>
 
         <div class="filter-right">
+          <button
+            v-if="hasActiveFilters"
+            class="filter-btn clear-btn"
+            @click="clearAllFilters"
+          >Clear filters</button>
           <span class="filter-info">{{ modelFilteredGames.length }} games</span>
           <button
             v-if="!isStatic && unsavedFilteredCount > 0"
@@ -151,11 +156,31 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { fetchGames, isStatic } from '../composables/useApi'
 import { formatDate, formatTokens, shortModel } from '../utils/format'
 
+const STORAGE_KEY = 'arenai-dashboard-filters'
+
+function loadFilters() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw)
+  } catch { return {} }
+}
+
+function saveFilters() {
+  const data = {
+    activeFilter: activeFilter.value,
+    goodModels: [...selectedGoodModels.value],
+    evilModels: [...selectedEvilModels.value],
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+const saved = loadFilters()
 const allGames = ref([])
 const loading = ref(true)
-const activeFilter = ref('all')
-const selectedGoodModels = ref(new Set())
-const selectedEvilModels = ref(new Set())
+const activeFilter = ref(saved.activeFilter || 'all')
+const selectedGoodModels = ref(new Set(saved.goodModels || []))
+const selectedEvilModels = ref(new Set(saved.evilModels || []))
 const goodFilterOpen = ref(false)
 const evilFilterOpen = ref(false)
 const currentPage = ref(1)
@@ -164,12 +189,20 @@ const PAGE_SIZE = 100
 function toggleGoodModel(m) {
   const s = selectedGoodModels.value
   if (s.has(m)) s.delete(m); else s.add(m)
-  selectedGoodModels.value = new Set(s) // trigger reactivity
+  selectedGoodModels.value = new Set(s)
+  saveFilters()
 }
 function toggleEvilModel(m) {
   const s = selectedEvilModels.value
   if (s.has(m)) s.delete(m); else s.add(m)
   selectedEvilModels.value = new Set(s)
+  saveFilters()
+}
+function clearAllFilters() {
+  activeFilter.value = 'all'
+  selectedGoodModels.value = new Set()
+  selectedEvilModels.value = new Set()
+  saveFilters()
 }
 
 // Close popovers on outside click
@@ -320,13 +353,20 @@ function goToPage(p) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Reset page when any filter changes
-watch([activeFilter, selectedGoodModels, selectedEvilModels], () => { currentPage.value = 1 })
+// Reset page when any filter changes, persist filters
+watch([activeFilter, selectedGoodModels, selectedEvilModels], () => {
+  currentPage.value = 1
+  saveFilters()
+})
 
 const games = allGames
 
 const unfinishedCount = computed(() =>
   allGames.value.filter(g => g.status !== 'finished').length
+)
+
+const hasActiveFilters = computed(() =>
+  activeFilter.value !== 'all' || selectedGoodModels.value.size > 0 || selectedEvilModels.value.size > 0
 )
 
 const unsavedFilteredCount = computed(() =>
@@ -437,6 +477,14 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+.clear-btn {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  opacity: 0.7;
+}
+.clear-btn:hover {
+  opacity: 1;
 }
 
 .model-filter-wrap {
