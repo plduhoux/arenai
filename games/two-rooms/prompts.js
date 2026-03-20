@@ -91,8 +91,9 @@ function getNewEvents(game, playerIndex) {
       return game.players[e.from]?.room === player.room;
     }
 
-    // Leader elected: visible to players in that room
-    if (e.type === 'leader_elected') return true; // Both rooms learn about leaders
+    // Leader votes and election: only visible to players in that room
+    if (e.type === 'leader_vote') return e.room === player.room;
+    if (e.type === 'leader_elected') return e.room === player.room;
 
     // Hostage selected: visible to players in that room
     if (e.type === 'hostage_selected') return true;
@@ -132,8 +133,11 @@ function formatNewEvents(events, playerIndex) {
           lines.push(`${e.fromName} privately shared ${e.shareType === 'card' ? 'their card' : 'their color'} with ${e.toName}.`);
         }
         break;
+      case 'leader_vote':
+        lines.push(`${e.voter} votes for ${e.pick} as leader.`);
+        break;
       case 'leader_elected':
-        lines.push(`${e.playerName} elected leader of Room ${e.room}.`);
+        lines.push(`${e.playerName || e.player} elected leader of Room ${e.room}.`);
         break;
       case 'hostage_selected':
         lines.push(`Room ${e.room} sends hostage(s): ${e.hostages.join(', ')}.`);
@@ -253,7 +257,7 @@ export function getRoomDiscussion(game, playerIndex, turn = 0) {
 
   const first = isFirstCall(game, playerIndex, 'discussion');
   const thoughtPrompt = game.enableThoughts
-    ? `\nTHOUGHT: your private strategy (1 sentence, not shared)`
+    ? `\nTHOUGHT: your private strategy (not shared with other players)`
     : '';
 
   const prompt = first
@@ -290,7 +294,7 @@ export function getCardShare(game, playerIndex) {
 
   const first = isFirstCall(game, playerIndex, 'card_share');
   const thoughtPrompt = game.enableThoughts
-    ? `\nTHOUGHT: your private reasoning (1 sentence)`
+    ? `\nTHOUGHT: your private reasoning (not shared)`
     : '';
 
   const prompt = first
