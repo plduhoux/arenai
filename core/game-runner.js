@@ -124,12 +124,11 @@ export async function runGame(gamePlugin, options = {}) {
       game.log.push({ type: 'error', round: game.round, message: err.message });
       onEvent({ type: 'error', round: game.round, message: err.message });
 
-      if (err instanceof FatalLLMError || err.fatal) {
-        console.error('Fatal error — stopping game immediately.');
-        gamePlugin.forceEnd(game, 'fatal_error');
-        break;
-      }
-      gamePlugin.recoverFromError(game);
+      // All LLM errors after retries are fatal — stop the game
+      console.error('LLM error after retries — stopping game.');
+      gamePlugin.forceEnd(game, 'llm_error');
+      game.errorStatus = true;
+      break;
     }
   }
 

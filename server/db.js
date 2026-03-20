@@ -240,7 +240,7 @@ export function saveGame(game) {
     sessionStats: game.sessionStats ? JSON.stringify(game.sessionStats) : null,
     liberal: game.liberalPolicies,
     fascist: game.fascistPolicies,
-    status: game.phase === 'done' ? 'finished' : 'running',
+    status: game.errorStatus ? 'error' : (game.phase === 'done' ? 'finished' : 'running'),
     createdAt: game.createdAt,
     finishedAt: game.phase === 'done' ? new Date().toISOString() : null,
   });

@@ -332,7 +332,7 @@ api.post('/games/run', async (req, res) => {
     const tokens = getTokenUsage(game.id);
     const doneData = {
       id: game.id,
-      status: 'finished',
+      status: game.errorStatus ? 'error' : 'finished',
       gameType: game.gameType,
       winner: game.winner,
       winReason: game.winReason,
@@ -458,7 +458,7 @@ api.post('/games/battle', async (req, res) => {
       const tokens = getTokenUsage(game.id);
       const doneData = {
         id: game.id,
-        status: 'finished',
+        status: game.errorStatus ? 'error' : 'finished',
         gameType: game.gameType,
         winner: game.winner,
         winReason: game.winReason,

@@ -62,7 +62,10 @@
             class="game-row"
             @click="$router.push(`/game/${g.id}`)"
           >
-            <td class="type-cell">{{ gameTypeLabel(g.game_type) }}</td>
+            <td class="type-cell">
+              {{ gameTypeLabel(g.game_type) }}
+              <span v-if="g.status === 'error'" class="error-badge">ERROR</span>
+            </td>
             <td class="matchup-good-cell">
               <span :class="factionClass(g, 'good')">{{ factionModel(g, 'good') }}</span>
             </td>
@@ -488,5 +491,22 @@ onMounted(async () => {
   margin-left: 0.5rem;
   color: var(--text-secondary);
   font-size: 0.8rem;
+}
+
+.error-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+tr:has(.error-badge) {
+  opacity: 0.5;
 }
 </style>
