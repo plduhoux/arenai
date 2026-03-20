@@ -118,7 +118,10 @@
                         </span>
                       </template>
                       <template v-else-if="h2hMode === 'games'">
-                        <span class="h2h-main">{{ getH2HDetail(row, col).total }}</span>
+                        <span class="h2h-role-detail">
+                          <span class="h2h-role-total">{{ getH2HDetail(row, col).total }}</span>
+                          <span class="h2h-role-breakdown">(<span class="h2h-good">{{ getH2HDetail(row, col).asGoodGames }}</span><span class="h2h-sep">/</span><span class="h2h-evil">{{ getH2HDetail(row, col).asEvilGames }}</span>)</span>
+                        </span>
                       </template>
                     </div>
                   </template>
