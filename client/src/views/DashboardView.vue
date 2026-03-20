@@ -28,6 +28,18 @@
         >{{ f.label }} ({{ f.count }})</button>
       </div>
 
+      <div class="pagination-bar" v-if="totalPages > 1">
+        <button class="page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">&lt;</button>
+        <button
+          v-for="p in displayedPages" :key="p"
+          class="page-btn" :class="{ active: p === currentPage, ellipsis: p === '...' }"
+          :disabled="p === '...'"
+          @click="p !== '...' && goToPage(p)"
+        >{{ p }}</button>
+        <button class="page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">&gt;</button>
+        <span class="page-info">{{ allGames.length }} games</span>
+      </div>
+
       <div class="table-scroll">
       <table class="games-table">
         <thead>
@@ -80,18 +92,31 @@
         </tbody>
       </table>
       </div>
+
+      <div class="pagination-bar" v-if="totalPages > 1">
+        <button class="page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">&lt;</button>
+        <button
+          v-for="p in displayedPages" :key="'b'+p"
+          class="page-btn" :class="{ active: p === currentPage, ellipsis: p === '...' }"
+          :disabled="p === '...'"
+          @click="p !== '...' && goToPage(p)"
+        >{{ p }}</button>
+        <button class="page-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">&gt;</button>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { fetchGames, isStatic } from '../composables/useApi'
 import { formatDate, formatTokens, shortModel } from '../utils/format'
 
-const games = ref([])
+const allGames = ref([])
 const loading = ref(true)
 const activeFilter = ref('all')
+const currentPage = ref(1)
+const PAGE_SIZE = 100
 
 const FACTION_LABELS = {
   'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
@@ -178,8 +203,8 @@ function factionColorClass(g, side) {
 }
 
 const gameTypeFilters = computed(() => {
-  const counts = { all: games.value.length }
-  for (const g of games.value) {
+  const counts = { all: allGames.value.length }
+  for (const g of allGames.value) {
     const t = g.game_type || 'secret-dictator'
     counts[t] = (counts[t] || 0) + 1
   }
@@ -190,13 +215,42 @@ const gameTypeFilters = computed(() => {
   return filters
 })
 
-const filteredGames = computed(() => {
-  if (activeFilter.value === 'all') return games.value
-  return games.value.filter(g => (g.game_type || 'secret-dictator') === activeFilter.value)
+const typeFilteredGames = computed(() => {
+  if (activeFilter.value === 'all') return allGames.value
+  return allGames.value.filter(g => (g.game_type || 'secret-dictator') === activeFilter.value)
 })
 
+const totalPages = computed(() => Math.ceil(typeFilteredGames.value.length / PAGE_SIZE))
+
+const filteredGames = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return typeFilteredGames.value.slice(start, start + PAGE_SIZE)
+})
+
+const displayedPages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages = [1]
+  if (current > 3) pages.push('...')
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+  if (current < total - 2) pages.push('...')
+  pages.push(total)
+  return pages
+})
+
+function goToPage(p) {
+  currentPage.value = Math.max(1, Math.min(p, totalPages.value))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Reset page when filter changes
+watch(activeFilter, () => { currentPage.value = 1 })
+
+const games = allGames // alias for template compatibility
+
 const unfinishedCount = computed(() =>
-  games.value.filter(g => g.status !== 'finished').length
+  allGames.value.filter(g => g.status !== 'finished').length
 )
 
 async function toggleSave(g) {
@@ -218,7 +272,7 @@ async function deleteGame(g) {
       alert(err.error || 'Failed to delete')
       return
     }
-    games.value = games.value.filter(x => x.id !== g.id)
+    allGames.value = allGames.value.filter(x => x.id !== g.id)
   } catch (e) {
     alert(e.message)
   }
@@ -234,7 +288,7 @@ async function cleanupUnfinished() {
       alert(err.error || 'Failed to clean up')
       return
     }
-    games.value = games.value.filter(g => g.status === 'finished')
+    allGames.value = allGames.value.filter(g => g.status === 'finished')
   } catch (e) {
     alert(e.message)
   }
@@ -242,7 +296,7 @@ async function cleanupUnfinished() {
 
 onMounted(async () => {
   try {
-    games.value = await fetchGames()
+    allGames.value = await fetchGames(500)
   } catch {}
   loading.value = false
 })
@@ -393,5 +447,46 @@ onMounted(async () => {
 }
 .action-cell button + button {
   margin-left: 0.3rem;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.75rem 0;
+}
+.page-btn {
+  min-width: 2rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+.page-btn:hover:not(:disabled):not(.ellipsis) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.page-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.page-btn.ellipsis {
+  border: none;
+  background: none;
+  cursor: default;
+}
+.page-info {
+  margin-left: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 </style>

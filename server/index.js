@@ -161,7 +161,7 @@ api.get('/status', (req, res) => {
 });
 
 api.get('/games', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
   const offset = parseInt(req.query.offset) || 0;
   res.json(db.listGames(limit, offset));
 });
