@@ -172,6 +172,19 @@ const finishedState = computed(() => {
   const aliveWolves = players.filter(p => p.alive && (p.party === 'werewolf')).length
   const aliveVillagers = players.filter(p => p.alive && (p.party === 'villager')).length
 
+  // Two Rooms: compute final room sizes from logs
+  let roomACount = null, roomBCount = null
+  if ((g.game_type === 'two-rooms') && logs.value?.length) {
+    const roomHeaders = logs.value.filter(e => e.type === 'room_header')
+    if (roomHeaders.length) {
+      // Last room headers are the final state
+      const lastA = [...roomHeaders].reverse().find(h => h.room === 'A')
+      const lastB = [...roomHeaders].reverse().find(h => h.room === 'B')
+      if (lastA) roomACount = (lastA.playerNames || lastA.players || '').split(',').length
+      if (lastB) roomBCount = (lastB.playerNames || lastB.players || '').split(',').length
+    }
+  }
+
   return {
     status: 'finished',
     gameType: g.game_type || 'secret-dictator',
@@ -179,6 +192,8 @@ const finishedState = computed(() => {
     round: g.rounds || 0,
     winner: g.winner,
     players,
+    roomACount,
+    roomBCount,
     // Secret Dictator
     liberalPolicies: g.policies_liberal || 0,
     fascistPolicies: g.policies_fascist || 0,

@@ -9,8 +9,14 @@
       style="cursor: pointer"
     >
       <div class="rc-round">R{{ r.round }}</div>
-      <!-- Secret Dictator / Two Rooms: simple text -->
-      <template v-if="gameType !== 'werewolf'">
+      <!-- Two Rooms: leader + hostage with colors -->
+      <template v-if="gameType === 'two-rooms'">
+        <div class="rc-lines">
+          <div v-for="(line, i) in r.lines" :key="i" class="rc-line" v-html="line" />
+        </div>
+      </template>
+      <!-- Secret Dictator -->
+      <template v-else-if="gameType !== 'werewolf'">
         <div class="rc-info">{{ r.info }}</div>
         <div class="rc-result">
           <span v-if="r.outcome === 'liberal'" class="rc-liberal">L</span>
@@ -122,9 +128,21 @@ const rounds = computed(() => {
     }
 
     // Two Rooms
+    if (e.type === 'leader_elected' && props.gameType === 'two-rooms') {
+      const name = e.playerName || e.player
+      if (!entry._leaders) entry._leaders = {}
+      entry._leaders[e.room] = name
+      // Rebuild leader line
+      entry.lines = entry.lines.filter(l => !l.startsWith('Leader'))
+      const parts = []
+      if (entry._leaders.A) parts.push(colorName(entry._leaders.A))
+      if (entry._leaders.B) parts.push(colorName(entry._leaders.B))
+      entry.lines.unshift(`Leader: ${parts.join(' / ')}`)
+    }
     if (e.type === 'exchange') {
-      entry.info = `${(e.aToB||[]).join(',')} / ${(e.bToA||[]).join(',')}`
-      entry.outcome = 'liberal'
+      const aToB = (e.aToB||[]).map(n => colorName(n)).join(', ')
+      const bToA = (e.bToA||[]).map(n => colorName(n)).join(', ')
+      entry.lines.push(`Hostage: ${aToB} \u2194 ${bToA}`)
     }
   }
 
