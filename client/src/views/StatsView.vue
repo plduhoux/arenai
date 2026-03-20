@@ -112,10 +112,9 @@
                         <span class="h2h-main">{{ h2hWinPct(row, col) }}%</span>
                       </template>
                       <template v-else-if="h2hMode === 'role'">
-                        <span class="h2h-role-line">
-                          <span class="h2h-good">{{ getH2HDetail(row, col).asGoodWins }}-{{ getH2HDetail(row, col).asGoodGames - getH2HDetail(row, col).asGoodWins }}</span>
-                          <span class="h2h-sep">/</span>
-                          <span class="h2h-evil">{{ getH2HDetail(row, col).asEvilWins }}-{{ getH2HDetail(row, col).asEvilGames - getH2HDetail(row, col).asEvilWins }}</span>
+                        <span class="h2h-role-detail">
+                          <span class="h2h-role-total">{{ getH2HDetail(row, col).totalWins }}</span>
+                          <span class="h2h-role-breakdown">(<span class="h2h-good">{{ getH2HDetail(row, col).asGoodWins }}</span><span class="h2h-sep">/</span><span class="h2h-evil">{{ getH2HDetail(row, col).asEvilWins }}</span>)</span>
                         </span>
                       </template>
                       <template v-else-if="h2hMode === 'games'">
@@ -736,12 +735,20 @@ onUnmounted(() => {
   font-weight: 700;
   font-size: 0.9rem;
 }
-.h2h-role-line {
+.h2h-role-detail {
   display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.75rem;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+.h2h-role-total {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.h2h-role-breakdown {
+  font-size: 0.72rem;
   font-weight: 600;
+  opacity: 0.85;
 }
 .h2h-good { color: var(--good, #22c55e); }
 .h2h-evil { color: var(--evil, #ef4444); }
