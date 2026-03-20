@@ -18,6 +18,31 @@ function stripMd(text) {
     .trim();
 }
 
+/**
+ * Extract a player number from a labeled line (e.g. "PICK: 3").
+ * Falls back to last valid number in the full text if no label found.
+ * This avoids picking numbers from THOUGHT/reasoning sections.
+ */
+function extractPick(text, label, validIndices) {
+  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  const labelMatch = text.match(labelRegex);
+  if (labelMatch) {
+    const n = parseInt(labelMatch[1]);
+    if (validIndices.includes(n)) return n;
+  }
+  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineMatch = text.match(lineRegex);
+  if (lineMatch) {
+    const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+    for (const n of nums) if (validIndices.includes(n)) return n;
+  }
+  const allNums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+  for (let i = allNums.length - 1; i >= 0; i--) {
+    if (validIndices.includes(allNums[i])) return allNums[i];
+  }
+  return null;
+}
+
 const PLAYER_COLORS = ['R', 'B', 'G', 'Y', 'P', 'O', 'W', 'Br', 'Pk', 'Gr'];
 
 // Track last-sent log index per player to only send delta
@@ -233,12 +258,11 @@ export function chooseChancellor(game, eligibleIndices) {
   const eligible = eligibleIndices.map(i => `${game.players[i].name} (#${i})`).join(', ');
 
   return ask(game, presidentIndex,
-    `You are President this round. Nominate a Chancellor from these eligible players: ${eligible}\n\nReply with ONLY the player number, like: 3`,
+    `You are President this round. Nominate a Chancellor from these eligible players: ${eligible}\n\nPICK: player number`,
     (text) => {
-      const numbers = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const idx of numbers) {
-        if (eligibleIndices.includes(idx)) return idx;
-      }
+      const n = extractPick(text, 'PICK', eligibleIndices);
+      if (n !== null) return n;
+      // Name fallback
       for (const idx of eligibleIndices) {
         if (text.toLowerCase().includes(game.players[idx].name.toLowerCase())) return idx;
       }
@@ -460,12 +484,10 @@ export async function choosePowerTarget(game, power, eligibleIndices) {
   }
 
   const targetIndex = await ask(game, presidentIndex,
-    `PRESIDENTIAL POWER: ${power.toUpperCase()}\n${instruction}\n\nEligible targets: ${eligible}\n\nReply with ONLY the player number.`,
+    `PRESIDENTIAL POWER: ${power.toUpperCase()}\n${instruction}\n\nEligible targets: ${eligible}\n\nTARGET: player number`,
     (text) => {
-      const numbers = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const idx of numbers) {
-        if (eligibleIndices.includes(idx)) return idx;
-      }
+      const n = extractPick(text, 'TARGET', eligibleIndices);
+      if (n !== null) return n;
       for (const idx of eligibleIndices) {
         if (text.toLowerCase().includes(game.players[idx].name.toLowerCase())) return idx;
       }

@@ -19,6 +19,30 @@ function stripMd(text) {
     .trim();
 }
 
+/**
+ * Extract a player number from a labeled line (e.g. "PICK: 3").
+ * Falls back to last valid number in the full text if no label found.
+ */
+function extractPick(text, label, validIndices) {
+  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  const labelMatch = text.match(labelRegex);
+  if (labelMatch) {
+    const n = parseInt(labelMatch[1]);
+    if (validIndices.includes(n)) return n;
+  }
+  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineMatch = text.match(lineRegex);
+  if (lineMatch) {
+    const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+    for (const n of nums) if (validIndices.includes(n)) return n;
+  }
+  const allNums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+  for (let i = allNums.length - 1; i >= 0; i--) {
+    if (validIndices.includes(allNums[i])) return allNums[i];
+  }
+  return null;
+}
+
 // Track last-sent log index per player to only send delta
 const playerLogCursors = new Map();
 
@@ -291,12 +315,11 @@ export function getLeaderVote(game, playerIndex) {
     .map(p => `${p.name} (#${p.index})`).join(', ');
 
   return ask(game, playerIndex,
-    `NOMINATE A LEADER for Room ${room}. You cannot nominate yourself.\nCandidates: ${roommates}\nReply with the player number.`,
+    `NOMINATE A LEADER for Room ${room}. You cannot nominate yourself.\nCandidates: ${roommates}\nPICK: player number`,
     (text) => {
       const eligible = engine.getPlayerIndicesInRoom(game, room).filter(i => i !== playerIndex);
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (eligible.includes(n)) return n;
-      return eligible[Math.floor(Math.random() * eligible.length)];
+      const n = extractPick(text, 'PICK', eligible);
+      return n !== null ? n : eligible[Math.floor(Math.random() * eligible.length)];
     },
   );
 }
@@ -311,15 +334,27 @@ export function getHostagePick(game, leaderIndex) {
     .map(p => `${p.name} (#${p.index})`).join(', ');
 
   return ask(game, leaderIndex,
-    `You are LEADER of Room ${room}. Choose ${hostageCount} hostage(s) to send to the other room. You CANNOT send yourself.\nPlayers: ${eligible}\nReply with the player number.`,
+    `You are LEADER of Room ${room}. Choose ${hostageCount} hostage(s) to send to the other room. You CANNOT send yourself.\nPlayers: ${eligible}\nPICK: player number(s)`,
     (text) => {
       const eligibleIndices = engine.getPlayerIndicesInRoom(game, room).filter(i => i !== leaderIndex);
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+      // For hostage picks, extract from PICK line first, then fallback
+      const pickLine = text.match(/PICK:\s*(.*)/i)?.[1] || text;
+      const nums = [...pickLine.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
       const picks = [];
       for (const n of nums) {
         if (eligibleIndices.includes(n) && !picks.includes(n)) {
           picks.push(n);
           if (picks.length >= hostageCount) break;
+        }
+      }
+      // Fallback to full text if PICK line didn't have enough
+      if (picks.length < hostageCount) {
+        const allNums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+        for (const n of allNums) {
+          if (eligibleIndices.includes(n) && !picks.includes(n)) {
+            picks.push(n);
+            if (picks.length >= hostageCount) break;
+          }
         }
       }
       while (picks.length < hostageCount) {

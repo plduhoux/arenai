@@ -18,6 +18,37 @@ function stripMd(text) {
     .trim();
 }
 
+/**
+ * Extract a player number from a labeled line (e.g. "PICK: 3").
+ * Falls back to last valid number in the full text if no label found.
+ * This avoids picking numbers from THOUGHT/reasoning sections.
+ */
+function extractPick(text, label, validIndices) {
+  // 1. Try the labeled line first
+  const labelRegex = new RegExp(`${label}:\\s*#?(\\d+)`, 'i');
+  const labelMatch = text.match(labelRegex);
+  if (labelMatch) {
+    const n = parseInt(labelMatch[1]);
+    if (validIndices.includes(n)) return n;
+  }
+
+  // 2. Fallback: extract from labeled line with broader search
+  const lineRegex = new RegExp(`${label}:\\s*(.*)`, 'i');
+  const lineMatch = text.match(lineRegex);
+  if (lineMatch) {
+    const nums = [...lineMatch[1].matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+    for (const n of nums) if (validIndices.includes(n)) return n;
+  }
+
+  // 3. Last resort: last valid number in the full text (LLMs reason first, answer last)
+  const allNums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
+  for (let i = allNums.length - 1; i >= 0; i--) {
+    if (validIndices.includes(allNums[i])) return allNums[i];
+  }
+
+  return null;
+}
+
 const FULL_DETAIL_ROUNDS = 2;
 
 // Track last-sent log index per player to only send delta
@@ -279,11 +310,10 @@ REASON: your PUBLIC justification (1 sentence)`,
 export function getMayorVote(game, playerIndex, candidates) {
   const candidateStr = candidates.map(i => `${game.players[i].name} (#${i})`).join(', ');
   return ask(game, playerIndex,
-    `MAYOR VOTE: Choose who should be Mayor.\nCandidates: ${candidateStr}\nReply: player number`,
+    `MAYOR VOTE: Choose who should be Mayor.\nCandidates: ${candidateStr}\nPICK: player number`,
     (text) => {
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (candidates.includes(n)) return n;
-      return candidates[Math.floor(Math.random() * candidates.length)];
+      const n = extractPick(text, 'PICK', candidates);
+      return n !== null ? n : candidates[Math.floor(Math.random() * candidates.length)];
     },
   );
 }
@@ -339,11 +369,11 @@ export function wolfChooseTarget(game) {
 
   const promises = wolves.map(w =>
     ask(game, w.index,
-      `Final decision. Choose your victim. Reply with the player number only.`,
+      `Final decision. Choose your victim.\nTARGET: player number`,
       (text) => {
-        const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-        for (const n of nums) if (eligible.some(e => e.index === n)) return n;
-        return eligible[Math.floor(Math.random() * eligible.length)].index;
+        const validIndices = eligible.map(e => e.index);
+        const n = extractPick(text, 'TARGET', validIndices);
+        return n !== null ? n : eligible[Math.floor(Math.random() * eligible.length)].index;
       },
     )
   );
@@ -378,12 +408,9 @@ export function seerInspect(game) {
   return ask(game, seerIndex, prompt,
     (text) => {
       const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\nTARGET:)/is);
-      // Extract numbers only from the TARGET line to avoid thought content interfering
-      const targetLine = text.match(/TARGET:\s*(.*)/i)?.[1] || text;
-      const nums = [...targetLine.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      let target = null;
-      for (const n of nums) if (eligible.some(e => e.index === n)) { target = n; break; }
-      if (target === null) target = eligible[Math.floor(Math.random() * eligible.length)].index;
+      const validIndices = eligible.map(e => e.index);
+      const target = extractPick(text, 'TARGET', validIndices)
+        ?? eligible[Math.floor(Math.random() * eligible.length)].index;
       return { target, thought: thoughtMatch ? thoughtMatch[1].trim() : null };
     },
   );
@@ -476,11 +503,10 @@ export function getRunoffVote(game, playerIndex, tiedPlayers) {
   const tiedStr = tiedPlayers.map(i => `${game.players[i].name} (#${i})`).join(', ');
 
   return ask(game, playerIndex,
-    `RUNOFF VOTE: There was a tie. Vote again between: ${tiedStr}\nYou MUST choose one. Reply: player number`,
+    `RUNOFF VOTE: There was a tie. Vote again between: ${tiedStr}\nYou MUST choose one.\nPICK: player number`,
     (text) => {
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (tiedPlayers.includes(n)) return { target: n };
-      return { target: tiedPlayers[Math.floor(Math.random() * tiedPlayers.length)] };
+      const n = extractPick(text, 'PICK', tiedPlayers);
+      return n !== null ? { target: n } : { target: tiedPlayers[Math.floor(Math.random() * tiedPlayers.length)] };
     },
   );
 }
@@ -493,11 +519,11 @@ export function getDayVote(game, playerIndex) {
   const eligibleStr = alive.map(p => `${p.name} (#${p.index})`).join(', ');
 
   return ask(game, playerIndex,
-    `VOTE: Eliminate someone. ${eligibleStr}\nReply: player number`,
+    `VOTE: Eliminate someone. ${eligibleStr}\nPICK: player number`,
     (text) => {
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (alive.some(a => a.index === n)) return { target: n };
-      return { target: alive[Math.floor(Math.random() * alive.length)].index };
+      const validIndices = alive.map(a => a.index);
+      const n = extractPick(text, 'PICK', validIndices);
+      return n !== null ? { target: n } : { target: alive[Math.floor(Math.random() * alive.length)].index };
     },
   );
 }
@@ -512,11 +538,11 @@ export function getMayorSuccessor(game, dyingMayorIndex) {
   const eligibleStr = eligible.map(p => `${p.name} (#${p.index})`).join(', ');
 
   return ask(game, dyingMayorIndex,
-    `You are being eliminated. As Mayor, you must name your successor.\nPlayers: ${eligibleStr}\nReply: player number`,
+    `You are being eliminated. As Mayor, you must name your successor.\nPlayers: ${eligibleStr}\nPICK: player number`,
     (text) => {
-      const nums = [...text.matchAll(/(\d+)/g)].map(m => parseInt(m[1]));
-      for (const n of nums) if (eligible.some(e => e.index === n)) return n;
-      return eligible[Math.floor(Math.random() * eligible.length)].index;
+      const validIndices = eligible.map(e => e.index);
+      const n = extractPick(text, 'PICK', validIndices);
+      return n !== null ? n : eligible[Math.floor(Math.random() * eligible.length)].index;
     },
   );
 }
