@@ -13,11 +13,11 @@
       <template v-if="state.gameType === 'secret-dictator' || (!state.gameType && state.liberalPolicies !== undefined)">
         <div class="status-item">
           <span class="status-label">Liberal</span>
-          <span class="status-value liberal">{{ state.liberalPolicies }}/{{ state.liberalTarget || 5 }}</span>
+          <span class="status-value good">{{ state.liberalPolicies }}/{{ state.liberalTarget || 5 }}</span>
         </div>
         <div class="status-item">
           <span class="status-label">Fascist</span>
-          <span class="status-value fascist">{{ state.fascistPolicies }}/{{ state.fascistTarget || 6 }}</span>
+          <span class="status-value evil">{{ state.fascistPolicies }}/{{ state.fascistTarget || 6 }}</span>
         </div>
         <div class="status-item">
           <span class="status-label">Elections</span>
@@ -32,22 +32,22 @@
         </div>
         <div class="status-item">
           <span class="status-label">Wolves</span>
-          <span class="status-value fascist">{{ state.aliveWolves }}<template v-if="state.totalWolves">/{{ state.totalWolves }}</template></span>
+          <span class="status-value evil">{{ state.aliveWolves }}<template v-if="state.totalWolves">/{{ state.totalWolves }}</template></span>
         </div>
         <div class="status-item">
           <span class="status-label">Villagers</span>
-          <span class="status-value liberal">{{ state.aliveVillagers }}<template v-if="state.totalVillagers">/{{ state.totalVillagers }}</template></span>
+          <span class="status-value good">{{ state.aliveVillagers }}<template v-if="state.totalVillagers">/{{ state.totalVillagers }}</template></span>
         </div>
       </template>
       <!-- Two Rooms stats -->
       <template v-else-if="state.gameType === 'two-rooms'">
         <div class="status-item">
           <span class="status-label">Room A</span>
-          <span class="status-value liberal">{{ state.roomACount || '?' }}</span>
+          <span class="status-value">{{ state.roomACount || '?' }}</span>
         </div>
         <div class="status-item">
           <span class="status-label">Room B</span>
-          <span class="status-value fascist">{{ state.roomBCount || '?' }}</span>
+          <span class="status-value">{{ state.roomBCount || '?' }}</span>
         </div>
       </template>
       <div class="status-item">
@@ -73,7 +73,7 @@
       </div>
     </div>
     <div v-if="state.status === 'finished'" class="status-result">
-      <span :class="isGoodWinner ? 'liberal' : 'fascist'">
+      <span :class="isGoodWinner ? 'good' : 'evil'">
         {{ winnerLabel }}
       </span>
     </div>
@@ -96,7 +96,6 @@ const totalSent = computed(() => {
   return (s.tokensInput || 0) + (s.tokensCacheRead || 0) + (s.tokensCacheWrite || 0)
 })
 
-// Effective input = full-price tokens + cache reads at 10% + cache writes at 125%
 const effectiveInput = computed(() => {
   const s = props.state
   const fullPrice = s.tokensInput || 0
@@ -105,7 +104,6 @@ const effectiveInput = computed(() => {
   return Math.round(fullPrice + cacheRead * 0.1 + cacheWrite * 1.25)
 })
 
-// How much we saved vs sending everything at full price
 const cacheSavings = computed(() => {
   const s = props.state
   const totalSent = s.tokensTotalSent || (s.tokensInput + (s.tokensCacheRead || 0) + (s.tokensCacheWrite || 0))

@@ -285,8 +285,8 @@ h3 { font-size: 1.1rem; }
   font-size: 1rem;
   font-weight: 700;
 }
-.status-value.liberal { color: var(--liberal); }
-.status-value.fascist { color: var(--fascist); }
+.status-value.liberal, .status-value.good { color: var(--liberal); }
+.status-value.fascist, .status-value.evil { color: var(--fascist); }
 .status-value.status-running { color: var(--warning); }
 .status-value.status-finished { color: var(--success); }
 .status-value.status-error { color: var(--danger); }
@@ -643,8 +643,8 @@ h3 { font-size: 1.1rem; }
 
 .win-counts { margin-top: 0.5rem; font-size: 0.8rem; color: var(--text2); }
 
-.liberal { color: var(--liberal); }
-.fascist { color: var(--fascist); }
+.liberal, .good { color: var(--liberal); }
+.fascist, .evil { color: var(--fascist); }
 .positive { color: var(--success); margin-left: 0.3rem; }
 .negative { color: var(--danger); margin-left: 0.3rem; }
 
