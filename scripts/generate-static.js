@@ -86,8 +86,14 @@ for (const game of savedGames) {
 }
 console.log(`  Individual game data exported`);
 
-// 6. Export stats (saved games only for static site)
+// 6. Export stats (saved games only for static site) with per-gameType breakdown
 const statsAll = db.getStats(null, { savedOnly: true });
+const statsByGameType = {};
+const statsGameTypes = statsAll.gameTypes || [];
+for (const gt of statsGameTypes) {
+  statsByGameType[gt] = db.getStats(gt, { savedOnly: true });
+}
+statsAll.byGameType = statsByGameType;
 writeFileSync(join(DATA, 'stats.json'), JSON.stringify(statsAll, null, 2));
 console.log(`  stats.json`);
 
