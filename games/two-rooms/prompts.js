@@ -199,9 +199,9 @@ After ${game.maxRounds} rounds of exchanges, the game ends and rooms are checked
       break;
     default:
       if (player.team === 'blue') {
-        roleInfo = `You are a BLUE AGENT. Your team wins if the President and the Bomber end up in different rooms. Protect the President.`;
+        roleInfo = `You are a BLUE AGENT. Your team wins if the President and the Bomber end up in different rooms. Protect the President!`;
       } else {
-        roleInfo = `You are a RED AGENT. Your team wins if the Bomber ends up in the same room as the President. Kill the President.`;
+        roleInfo = `You are a RED AGENT. Your team wins if the Bomber ends up in the same room as the President. Kill the President!`;
       }
   }
 
