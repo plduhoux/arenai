@@ -38,7 +38,7 @@ export async function startGame(config) {
   })
 }
 
-export async function fetchGames(limit = 50) {
+export async function fetchGames(limit = 200) {
   if (STATIC) return fetchApi('/games')
   return fetchApi(`/games?limit=${limit}`)
 }
