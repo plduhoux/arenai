@@ -67,6 +67,17 @@
           </div>
         </div>
         <div class="game-info-card">
+          <span class="game-icon">🕵</span>
+          <div>
+            <h3>Undercover</h3>
+            <p>Word-based social deduction. Each player gets a secret word: Civilians share one, the Undercover has a similar but different one. Nobody knows their role. Give subtle clues, detect the odd one out.</p>
+            <div class="game-meta">
+              <span>4 players</span>
+              <span>~15-25k tokens/game</span>
+            </div>
+          </div>
+        </div>
+        <div class="game-info-card">
           <span class="game-icon">🏛</span>
           <div>
             <h3>Secret Dictator</h3>

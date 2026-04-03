@@ -22,11 +22,13 @@ setKeyLookup((providerId) => db.getProviderWithKey(providerId));
 import * as secretDictator from '../games/secret-dictator/index.js';
 import * as werewolf from '../games/werewolf/index.js';
 import * as twoRooms from '../games/two-rooms/index.js';
+import * as undercover from '../games/undercover/index.js';
 
 const GAME_PLUGINS = {
-  [secretDictator.id]: secretDictator,
   [werewolf.id]: werewolf,
   [twoRooms.id]: twoRooms,
+  [undercover.id]: undercover,
+  [secretDictator.id]: secretDictator,
 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -245,8 +247,9 @@ api.post('/games/run', async (req, res) => {
     return res.status(400).json({ error: `Unknown game type: ${gameType}` });
   }
 
-  if (playerCount < 5 || playerCount > 10) {
-    return res.status(400).json({ error: 'Player count must be 5-10' });
+  const minPlayers = gameType === 'undercover' ? 4 : 5;
+  if (playerCount < minPlayers || playerCount > 10) {
+    return res.status(400).json({ error: `Player count must be ${minPlayers}-10` });
   }
 
   const runningCount = listRunningGames().length;
@@ -337,7 +340,7 @@ api.post('/games/run', async (req, res) => {
       winner: game.winner,
       winReason: game.winReason,
       rounds: game.round,
-      players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model })),
+      players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model, word: p.word })),
       tokensInput: tokens.input,
       tokensOutput: tokens.output,
       tokensCacheRead: tokens.cacheRead || 0,
@@ -463,7 +466,7 @@ api.post('/games/battle', async (req, res) => {
         winner: game.winner,
         winReason: game.winReason,
         rounds: game.round,
-        players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model })),
+        players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model, word: p.word })),
         tokensInput: tokens.input,
         tokensOutput: tokens.output,
         tokensCacheRead: tokens.cacheRead || 0,
@@ -557,7 +560,7 @@ api.get('/games/:id/sessions', (req, res) => {
     // Add player info from game ref
     const players = active?.gameRef?.players || [];
     return res.json({ sessions: liveSessions, players: players.map((p, i) => ({
-      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model,
+      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model, word: p.word,
     }))});
   }
   
@@ -565,7 +568,7 @@ api.get('/games/:id/sessions', (req, res) => {
   if (active?.gameRef?.sessions) {
     const players = active.gameRef.players || [];
     return res.json({ sessions: active.gameRef.sessions, players: players.map((p, i) => ({
-      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model,
+      index: i, name: p.name, role: p.role, party: p.party, team: p.team, alive: p.alive, model: p.model, word: p.word,
     }))});
   }
   
@@ -637,7 +640,7 @@ app.get('/{*splat}', (req, res) => {
   res.sendFile(join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`ArenAI running on http://localhost:${PORT}`);
   console.log(`Available games: ${Object.keys(GAME_PLUGINS).join(', ')}`);
   db.getDb();

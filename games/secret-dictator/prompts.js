@@ -282,76 +282,39 @@ export function getVoteIntention(game, playerIndex) {
   );
 }
 
-export function getDiscussionWithStance(game, playerIndex) {
+export function getDiscussion(game, playerIndex, turn = 0) {
   const president = game.players[game.presidentIndex].name;
   const chancellor = game.players[game.currentChancellorCandidate].name;
+  const discussionTurns = 2;
 
   const first = isFirstCall(game, playerIndex, 'discussion');
-  const withThoughts = game.enableThoughts;
-
-  const thoughtInstructions = withThoughts
-    ? `\nFirst write THOUGHT: your private reasoning (not shared with others).
-Then choose stance and message.\n`
+  const thoughtPrompt = game.enableThoughts
+    ? `\nTHOUGHT: your private strategy (not shared with other players)`
     : '';
 
-  const format = withThoughts
-    ? `Format:
-THOUGHT: your private reasoning (1 sentence)
-STANCE: attack/defense/analysis/pass
-MESSAGE: your statement (1-2 sentences, skip if PASS)`
-    : `Format:
-STANCE: attack/defense/analysis/pass
-MESSAGE: your statement (1-2 sentences, skip if PASS)`;
+  const alivePlayers = game.players
+    .map((p, i) => ({ ...p, index: i }))
+    .filter(p => p.alive && p.index !== playerIndex)
+    .map(p => `${p.name} (#${p.index})`).join(', ');
 
   const prompt = first
-    ? `${president} has nominated ${chancellor} as Chancellor.
-${thoughtInstructions}
-Choose a STANCE and speak (or PASS if nothing to add):
-- ATTACK: accuse someone specific
-- DEFENSE: respond to accusations
-- ANALYSIS: observations
-- PASS: stay silent
+    ? `DISCUSSION (Round ${game.round}, turn ${turn + 1}/${discussionTurns}).
+${president} has nominated ${chancellor} as Chancellor. Debate this government before voting.
 
-${format}`
-    : `Your turn to speak on the ${president}/${chancellor} government.${withThoughts ? '\nTHOUGHT: your reasoning' : ''}
-STANCE: attack/defense/analysis/pass
-MESSAGE: your statement`;
+Other players: ${alivePlayers}
+${thoughtPrompt}
+MESSAGE: your public statement (1-2 sentences). Say MESSAGE: PASS to stay silent.`
+    : `Your turn to speak (Round ${game.round}, turn ${turn + 1}/${discussionTurns}).${thoughtPrompt}
+MESSAGE: your statement or PASS`;
 
   return ask(game, playerIndex, prompt,
     (text) => {
-      const thoughtMatch = withThoughts ? text.match(/THOUGHT:\s*(.+?)(?=\nSTANCE:)/is) : null;
-      const stanceMatch = text.match(/STANCE:\s*(attack|defense|analysis|pass)/i);
+      const thoughtMatch = text.match(/THOUGHT:\s*(.+?)(?=\n(?:MESSAGE|$))/is);
+      const thought = thoughtMatch?.[1]?.trim() || null;
       const messageMatch = text.match(/MESSAGE:\s*(.+)/is);
-
-      const stance = stanceMatch ? stanceMatch[1].toLowerCase() : 'analysis';
-      const thought = thoughtMatch ? thoughtMatch[1].trim() : '';
-      const message = stance === 'pass' ? 'PASS' :
-        (messageMatch ? messageMatch[1]
-          .replace(/THOUGHT:\s*.+/is, '')
-          .replace(/^["']|["']$/g, '')
-          .trim() : 'PASS');
-
-      return { stance, message, thought };
-    },
-  );
-}
-
-export function getRebuttal(game, playerIndex) {
-  const playerName = game.players[playerIndex].name;
-
-  // Check if mentioned in recent discussion events (from delta, not full log)
-  // Since we use sessions, just ask if they want to respond
-  return ask(game, playerIndex,
-    `Your name was mentioned. Respond briefly (1 sentence) or PASS.`,
-    (text) => {
-      const clean = text
-        .replace(/THOUGHT:\s*.+?(?=\n(?:STANCE|MESSAGE)|$)/is, '')
-        .replace(/STANCE:\s*\w+\s*/i, '')
-        .replace(/^["']|["']$/g, '')
-        .replace(/^MESSAGE:\s*/i, '')
-        .trim();
-      const message = clean.toUpperCase() === 'PASS' ? 'PASS' : clean;
-      return { message, thought: '' };
+      const message = messageMatch ? messageMatch[1].replace(/^["']|["']$/g, '').trim() : text.replace(/THOUGHT:.*$/is, '').trim();
+      if (!message || message === 'PASS') return { action: 'pass', message: 'PASS', thought };
+      return { action: 'discuss', message, thought };
     },
   );
 }

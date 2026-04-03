@@ -12,6 +12,7 @@
     >
       <span class="chip-name">{{ p.name }}</span>
       <span class="chip-role">{{ p.role }}</span>
+      <span v-if="p.word" class="chip-word">"{{ p.word }}"</span>
       <span v-if="p.tokens" class="chip-tokens">
         {{ formatK(p.tokens.input + p.tokens.cacheRead + p.tokens.cacheWrite) }}
         <span v-if="p.tokens.cacheRead > 0" class="chip-cached">{{ Math.round(p.tokens.cacheRead / (p.tokens.input + p.tokens.cacheRead + p.tokens.cacheWrite) * 100) }}%</span>
@@ -94,10 +95,20 @@ function formatK(n) {
 /* Faction colors */
 .player-chip.werewolf .chip-name,
 .player-chip.fascist .chip-name,
-.player-chip.red .chip-name { color: #ff6b6b; }
+.player-chip.red .chip-name,
+.player-chip.undercover .chip-name { color: #ff6b6b; }
 .player-chip.villager .chip-name,
 .player-chip.liberal .chip-name,
-.player-chip.blue .chip-name { color: #6bcaff; }
+.player-chip.blue .chip-name,
+.player-chip.civilian .chip-name { color: #6bcaff; }
+
+.chip-word {
+  font-size: 0.6rem;
+  font-style: italic;
+  font-weight: 600;
+}
+.player-chip.undercover .chip-word { color: #ff6b6b; }
+.player-chip.civilian .chip-word { color: #6bcaff; }
 
 .player-chip.dead {
   opacity: 0.4;

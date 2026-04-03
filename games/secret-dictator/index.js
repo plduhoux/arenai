@@ -122,59 +122,32 @@ async function phaseNomination(game, { onEvent }) {
   });
 }
 
-async function phaseDiscussion(game, { onEvent }) {
+async function phaseDiscussion(game, { onEvent, checkPause }) {
   const alive = engine.getAliveIndices(game);
   const president = engine.getPresident(game);
   const chancellor = game.players[game.currentChancellorCandidate];
 
-  narrate(onEvent, `Discussion phase: ${alive.length} players debate the ${president.name}/${chancellor.name} government before voting. Each player chooses a stance (attack, defense, or analysis) or passes. Defenders speak first.`);
+  const discussionTurns = 2;
+  narrate(onEvent, `Discussion phase: ${alive.length} players debate the ${president.name}/${chancellor.name} government before voting. ${discussionTurns} discussion turn(s), players speak one at a time.`);
 
-  // Round 1: stance-based discussion
-  // Each player picks a stance (attack/defense/analysis) or PASS
-  const stancePromises = alive.map(i => prompts.getDiscussionWithStance(game, i));
-  const stanceResults = await Promise.all(stancePromises);
+  for (let turn = 0; turn < discussionTurns; turn++) {
+    if (turn > 0) narrate(onEvent, `Discussion turn ${turn + 1}/${discussionTurns}.`);
 
-  // Sort by priority: defense first, then attack, then analysis
-  const STANCE_PRIORITY = { defense: 0, attack: 1, analysis: 2 };
-  const contributions = [];
-  for (let j = 0; j < alive.length; j++) {
-    const { stance, message, thought } = stanceResults[j];
-    if (message === 'PASS') continue;
-    contributions.push({ playerIndex: alive[j], stance, message, thought });
-  }
-  contributions.sort((a, b) => (STANCE_PRIORITY[a.stance] ?? 3) - (STANCE_PRIORITY[b.stance] ?? 3));
+    // Shuffle speaking order each turn
+    const order = [...alive].sort(() => Math.random() - 0.5);
 
-  // Emit in priority order
-  for (const c of contributions) {
-    if (c.thought && game.enableThoughts) {
-      game.log.push({ type: 'private_thought', round: game.round, player: c.playerIndex, playerName: game.players[c.playerIndex].name, thought: c.thought });
-      onEvent({ type: 'thought', player: game.players[c.playerIndex].name, thought: c.thought });
-    }
-    engine.recordDiscussion(game, c.playerIndex, c.message);
-    onEvent({
-      type: 'discussion',
-      player: game.players[c.playerIndex].name,
-      stance: c.stance,
-      message: c.message,
-    });
-  }
+    for (const playerIndex of order) {
+      if (checkPause) await checkPause();
+      const result = await prompts.getDiscussion(game, playerIndex, turn);
+      const player = game.players[playerIndex];
 
-  // Round 2: rebuttals (only mentioned players, in parallel)
-  const roundDiscussion = game.log
-    .filter(e => e.type === 'discussion' && e.round === game.round)
-    .map(e => e.message || '').join(' ').toLowerCase();
-
-  const mentionedPlayers = alive.filter(i => roundDiscussion.includes(game.players[i].name.toLowerCase()));
-
-  if (mentionedPlayers.length > 0) {
-    narrate(onEvent, `Rebuttal: ${mentionedPlayers.map(i => game.players[i].name).join(', ')} were mentioned and can respond.`);
-    const rebuttalPromises = mentionedPlayers.map(i => prompts.getRebuttal(game, i).then(r => ({ i, ...r })));
-    const rebuttalResults = await Promise.all(rebuttalPromises);
-
-    for (const { i, message } of rebuttalResults) {
-      if (message && message !== 'PASS') {
-        engine.recordDiscussion(game, i, message);
-        onEvent({ type: 'discussion', player: game.players[i].name, stance: 'rebuttal', message });
+      if (result.thought) {
+        game.log.push({ type: 'private_thought', round: game.round, player: playerIndex, playerName: player.name, thought: result.thought });
+        onEvent({ type: 'thought', player: player.name, message: result.thought });
+      }
+      if (result.message && result.message !== 'PASS') {
+        engine.recordDiscussion(game, playerIndex, result.message);
+        onEvent({ type: 'discussion', player: player.name, message: result.message });
       }
     }
   }

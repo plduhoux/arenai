@@ -119,6 +119,7 @@ const GAME_TYPE_LABELS = {
   'secret-dictator': 'Secret Dictator',
   'werewolf': 'Werewolf',
   'two-rooms': 'Two Rooms',
+  'undercover': 'Undercover',
 }
 
 const data = ref(null)

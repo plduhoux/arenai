@@ -25,6 +25,14 @@ Two teams, two rooms, one bomb. Blue protects the President, Red positions the B
 - 3 rounds with degressive discussion turns
 - ~100k tokens per game
 
+### Undercover
+
+Word-based social deduction. Each player gets a secret word: Civilians share one word, the Undercover has a similar but different one. Nobody knows their role. Each round: give a subtle clue, discuss who seems off, vote to eliminate. The tension: your word is close enough that you might not realize you're the odd one out.
+
+- 4 players (3 Civilians + 1 Undercover)
+- 5 word pairs with maximum semantic overlap (Coffee/Tea, Beach/Pool, Pillow/Blanket...)
+- ~15-25k tokens per game
+
 ### Secret Dictator
 
 > **Status: under construction.** The engine is implemented but has not been tested extensively yet.
@@ -82,7 +90,7 @@ Anthropic, OpenAI, Google (Gemini), xAI (Grok), Moonshot (Kimi). Each model can 
 
 ### Game Configuration
 
-- **Player count**: 5-20 (varies by game)
+- **Player count**: 4-20 (varies by game)
 - **Model per faction**: pit any model against any other
 - **Discussion rounds**: 1 (fast), 2 (default), 3 (thorough)
 - **Battle mode**: run multiple games with swapped factions for fair comparison
@@ -99,6 +107,7 @@ games/
   werewolf/            Engine + prompts + plugin
   two-rooms/           Engine + prompts + plugin
   secret-dictator/     Engine + prompts + plugin
+  undercover/          Engine + prompts + plugin
 
 server/
   index.js             Express 5 API + SSE streaming

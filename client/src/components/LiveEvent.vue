@@ -45,7 +45,7 @@ function pname(name) {
   const info = props.playerRoles[name]
   if (!info) return `<strong>${esc(name)}</strong>`
   const party = info.party || info.team
-  const cls = (party === 'werewolf' || party === 'fascist' || party === 'red') ? 'player-evil' : 'player-good'
+  const cls = (party === 'werewolf' || party === 'fascist' || party === 'red' || party === 'undercover') ? 'player-evil' : 'player-good'
   const icon = ROLE_ICONS[info.role] || ''
   return `<strong class="${cls}">${esc(name)}</strong>${icon ? '<span class="role-icon">' + icon + '</span>' : ''}`
 }
@@ -71,6 +71,14 @@ const content = computed(() => {
           return `<strong class="${cls}">${esc(p.name)}</strong>${icon ? '<span class="role-icon">' + icon + '</span>' : ''}: <span class="${p.party === 'werewolf' ? 'live-fascist' : 'live-liberal'}">${esc(p.role || p.party)}</span>`
         }).join(', ')
         return `<span class="narrator-text">New Werewolf game with ${count} players. Roles: ${roleList}</span>`
+      }
+      if (e.gameType === 'undercover') {
+        const roleList = (e.players || []).map(p => {
+          const cls = p.party === 'undercover' ? 'player-evil' : 'player-good'
+          const wordCls = p.party === 'undercover' ? 'live-fascist' : 'live-liberal'
+          return `<strong class="${cls}">${esc(p.name)}</strong>: <span class="${wordCls}">${esc(p.role)}</span> (<span class="${wordCls}">${esc(p.word || '?')}</span>)`
+        }).join(', ')
+        return `<span class="narrator-text">New Undercover game with ${count} players. Roles: ${roleList}. Nobody knows their role.</span>`
       }
       if (e.gameType === 'two-rooms') {
         const names = (e.players || []).map(p => pname(p.name)).join(', ')
@@ -218,6 +226,13 @@ const content = computed(() => {
       return `<span class="live-label live-fascist">Dawn</span> ${deathDescs} killed`
     }
 
+    // Undercover: clue events
+    case 'clue_phase_start':
+      return null // narrator covers it
+
+    case 'clue':
+      return `<span class="live-label live-clue">Clue</span> ${pname(e.player)}: <strong>${esc(e.clue)}</strong>`
+
     case 'elimination':
       return `<span class="live-label live-fascist">Eliminated</span> ${pname(e.player)} (${esc(e.role)}) with ${e.votes} votes`
 
@@ -231,7 +246,7 @@ const content = computed(() => {
       return `<div class="live-error">LLM Error: ${esc(e.message)}</div>`
 
     case 'game_end': {
-      const isGood = e.winner === 'liberal' || e.winner === 'villager'
+      const isGood = e.winner === 'liberal' || e.winner === 'villager' || e.winner === 'civilian'
       const cls = isGood ? 'live-liberal' : 'live-fascist'
       return `<strong>GAME OVER</strong> - <span class="${cls}">${e.winner?.toUpperCase()}</span> wins! (${esc(e.reason)})`
     }

@@ -217,6 +217,7 @@ const FACTION_LABELS = {
   'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
+  'undercover': { good: 'Civilian', evil: 'Undercover' },
 }
 
 const WINNER_LABELS = {
@@ -226,6 +227,8 @@ const WINNER_LABELS = {
   werewolf: 'Werewolf Win',
   blue: 'Blue Team Win',
   red: 'Red Team Win',
+  civilian: 'Civilian Win',
+  undercover: 'Undercover Win',
   draw: 'Draw',
 }
 
@@ -233,6 +236,7 @@ const GAME_TYPE_LABELS = {
   'secret-dictator': 'Secret Dictator',
   'werewolf': 'Werewolf',
   'two-rooms': 'Two Rooms',
+  'undercover': 'Undercover',
 }
 
 function gameTypeLabel(type) {
@@ -241,8 +245,8 @@ function gameTypeLabel(type) {
 
 function getModels(g) {
   const players = g.players || []
-  const goodParties = ['liberal', 'villager', 'blue']
-  const evilParties = ['fascist', 'werewolf', 'red']
+  const goodParties = ['liberal', 'villager', 'blue', 'civilian']
+  const evilParties = ['fascist', 'werewolf', 'red', 'undercover']
 
   let goodModel = null
   let evilModel = null
@@ -259,7 +263,7 @@ function getModels(g) {
 }
 
 function isWinnerGood(g) {
-  return ['liberal', 'villager', 'blue'].includes(g.winner)
+  return ['liberal', 'villager', 'blue', 'civilian'].includes(g.winner)
 }
 
 function factionClass(g, side) {

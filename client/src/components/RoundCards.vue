@@ -34,7 +34,7 @@
         </table>
       </template>
       <!-- Secret Dictator -->
-      <template v-else-if="gameType !== 'werewolf'">
+      <template v-else-if="gameType === 'secret-dictator'">
         <div class="rc-info">{{ r.info }}</div>
         <div class="rc-result">
           <span v-if="r.outcome === 'liberal'" class="rc-liberal">L</span>
@@ -85,7 +85,7 @@ const playerMap = computed(() => {
 
 function colorName(name) {
   const info = playerMap.value[name] || { party: 'unknown' }
-  const cssClass = info.party === 'werewolf' || info.party === 'fascist' || info.party === 'red' ? 'rc-name-evil' : 'rc-name-good'
+  const cssClass = info.party === 'werewolf' || info.party === 'fascist' || info.party === 'red' || info.party === 'undercover' ? 'rc-name-evil' : 'rc-name-good'
   const icon = ROLE_ICONS[info.role] || ''
   return `<span class="${cssClass}">${name}</span>${icon ? ' ' + icon : ''}`
 }
@@ -148,6 +148,11 @@ const rounds = computed(() => {
     }
     if (e.type === 'no_elimination') {
       entry.lines.push('No elimination')
+    }
+
+    // Undercover
+    if (e.type === 'clue') {
+      entry.lines.push(`${colorName(e.player)}: "${e.clue}"`)
     }
 
     // Two Rooms

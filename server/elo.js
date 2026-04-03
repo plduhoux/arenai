@@ -18,13 +18,13 @@ function expectedScore(rA, rB) {
 }
 
 function getSide(player) {
-  if (player.party === 'liberal' || player.party === 'villager' || player.team === 'blue') return 'good';
-  if (player.party === 'fascist' || player.party === 'werewolf' || player.team === 'red') return 'evil';
+  if (player.party === 'liberal' || player.party === 'villager' || player.party === 'civilian' || player.team === 'blue') return 'good';
+  if (player.party === 'fascist' || player.party === 'werewolf' || player.party === 'undercover' || player.team === 'red') return 'evil';
   return 'neutral';
 }
 
 function isGoodWinner(winner) {
-  return ['liberal', 'villager', 'blue'].includes(winner);
+  return ['liberal', 'villager', 'blue', 'civilian'].includes(winner);
 }
 
 /**

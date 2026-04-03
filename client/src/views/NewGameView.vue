@@ -134,6 +134,7 @@ const GAME_DEFAULTS = {
   'secret-dictator': { playerCount: 5, enableThoughts: false, discussionRounds: 1 },
   'werewolf': { playerCount: 7, enableThoughts: true, discussionRounds: 2 },
   'two-rooms': { playerCount: 8, enableThoughts: true, discussionRounds: 1 },
+  'undercover': { playerCount: 4, enableThoughts: true, discussionRounds: 1 },
 }
 
 const games = [
@@ -148,6 +149,12 @@ const games = [
     desc: 'Two teams, two rooms, hostage exchanges. Find the President.',
     rules: 'Blue vs Red team in 2 rooms over 3 rounds. Blue has a President, Red has a Bomber. Each round: discuss, elect a room leader, leader picks hostages to swap rooms. Players can share cards (verified) or make verbal claims (unverifiable). Red wins if the Bomber ends in the same room as the President.',
     tokenEstimate: '~100k tokens per game',
+  },
+  {
+    id: 'undercover', name: 'Undercover', icon: '\u{1F575}',
+    desc: 'Word-based deduction. Similar words, subtle clues, find the odd one out. 4 players.',
+    rules: 'Each player gets a secret word. Civilians share one word, the Undercover has a similar but different word. Nobody knows their role. Each round: give a clue about your word, discuss who seems off, vote to eliminate. Civilians win by eliminating the Undercover. The Undercover wins by surviving to the final 2.',
+    tokenEstimate: '~15-25k tokens per game',
   },
   {
     id: 'secret-dictator', name: 'Secret Dictator', icon: '\u{1F3DB}',
@@ -189,13 +196,18 @@ watch(gameType, (type) => {
   discussionRounds.value = defaults.discussionRounds ?? 1
 })
 
-const minPlayers = computed(() => gameType.value === 'two-rooms' ? 6 : 5)
+const minPlayers = computed(() => {
+  if (gameType.value === 'undercover') return 4
+  if (gameType.value === 'two-rooms') return 6
+  return 5
+})
 const maxPlayers = computed(() => 20)
 
 const factionLabels = computed(() => {
   switch (gameType.value) {
     case 'werewolf': return { good: 'Villager', evil: 'Werewolf' }
     case 'two-rooms': return { good: 'Blue Team', evil: 'Red Team' }
+    case 'undercover': return { good: 'Civilian', evil: 'Undercover' }
     default: return { good: 'Liberal', evil: 'Fascist' }
   }
 })

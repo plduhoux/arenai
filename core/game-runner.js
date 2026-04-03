@@ -62,7 +62,7 @@ export async function runGame(gamePlugin, options = {}) {
     type: 'game_start',
     gameId: game.id,
     gameType: gamePlugin.id,
-    players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model })),
+    players: game.players.map(p => ({ name: p.name, alive: p.alive, role: p.role, party: p.party, team: p.team, model: p.model, word: p.word })),
   });
 
   // Safety limit: count actual game rounds, not phase iterations

@@ -382,6 +382,7 @@ const GAME_TYPE_LABELS = {
   'secret-dictator': 'Secret Dictator',
   'werewolf': 'Werewolf',
   'two-rooms': 'Two Rooms',
+  'undercover': 'Undercover',
 }
 function gameTypeLabel(type) {
   return GAME_TYPE_LABELS[type] || type
@@ -391,6 +392,7 @@ const GAME_LABELS = {
   'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
+  'undercover': { good: 'Civilian', evil: 'Undercover' },
 }
 
 // ═══════ STATISTICS ═══════

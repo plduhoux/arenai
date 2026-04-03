@@ -129,11 +129,12 @@ const WINNER_LABELS = {
   liberal: 'LIBERAL WIN', fascist: 'FASCIST WIN',
   villager: 'VILLAGER WIN', werewolf: 'WEREWOLF WIN',
   blue: 'BLUE TEAM WIN', red: 'RED TEAM WIN',
+  civilian: 'CIVILIAN WIN', undercover: 'UNDERCOVER WIN',
   draw: 'DRAW',
 }
 
 const isGoodWinner = computed(() =>
-  ['liberal', 'villager', 'blue'].includes(props.state.winner)
+  ['liberal', 'villager', 'blue', 'civilian'].includes(props.state.winner)
 )
 
 const winnerLabel = computed(() =>
@@ -144,6 +145,7 @@ const FACTION_LABELS = {
   'secret-dictator': { good: 'Liberal', evil: 'Fascist' },
   'werewolf': { good: 'Villager', evil: 'Werewolf' },
   'two-rooms': { good: 'Blue', evil: 'Red' },
+  'undercover': { good: 'Civilian', evil: 'Undercover' },
 }
 
 const matchup = computed(() => {
@@ -156,8 +158,8 @@ const matchup = computed(() => {
   let evilModel = s.evilModel
 
   if (!goodModel && s.players?.length) {
-    const goodParties = ['liberal', 'villager', 'blue']
-    const evilParties = ['fascist', 'werewolf', 'red']
+    const goodParties = ['liberal', 'villager', 'blue', 'civilian']
+    const evilParties = ['fascist', 'werewolf', 'red', 'undercover']
     for (const p of s.players) {
       if (goodParties.includes(p.party || p.team) && !goodModel) goodModel = p.model
       if (evilParties.includes(p.party || p.team) && !evilModel) evilModel = p.model
